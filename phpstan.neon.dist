@@ -1,0 +1,40 @@
+includes:
+  - vendor/larastan/larastan/extension.neon
+  - phpstan-local.neon
+  # Optional stricter rules if desired in the future:
+  # - vendor/larastan/larastan/rules.neon
+  # - vendor/phpstan/phpstan-phpunit/extension.neon
+
+parameters:
+  # Increased strictness as code stabilizes
+  level: 8
+  paths:
+    - src
+    - tests
+
+  tmpDir: var/phpstan
+
+  # Optional: use composer autoload (harmless for packages, helpful for richer analysis)
+  bootstrapFiles:
+    - vendor/autoload.php
+
+  # Keep it minimal for a library; tighten rules as code grows
+  checkMissingVarTagTypehint: false
+  treatPhpDocTypesAsCertain: false
+  reportUnmatchedIgnoredErrors: false
+
+  # Ignore vendor for library analysis and Pest bootstrap
+  excludePaths:
+    - vendor
+    - tests/Pest.php
+
+  # Improve inference for private properties
+  inferPrivatePropertyTypeFromConstructor: true
+
+  # Temporary ignore: env() used in test bootstrap; acceptable in test context
+  ignoreErrors:
+    - identifier: larastan.noEnvCallsOutsideOfConfig
+      path: tests/TestCase.php
+
+  # Consider tightening over time (kept off by default to reduce noise for new packages):
+  # checkMissingIterableValueType: true

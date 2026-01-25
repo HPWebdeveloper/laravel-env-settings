@@ -1,0 +1,18 @@
+# Package-specific PHPStan configuration
+# This file contains rules specific to this package and won't be overwritten by skeleton sync
+# Add your package-specific ignoreErrors, excludePaths, or other customizations here
+#
+# Example:
+# parameters:
+#   ignoreErrors:
+#     # Trait provided for package users, not used internally
+#     - identifier: trait.unused
+#       path: src/Traits/SomeExportedTrait.php
+#
+#     # Anonymous class in service provider
+#     -
+#       message: '#Property .* has no type specified#'
+#       path: src/ServiceProvider.php
+
+# Keep this empty parameters block to prevent errors
+parameters: {}

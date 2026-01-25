@@ -1,0 +1,136 @@
+#!/usr/bin/env php
+<?php
+declare(strict_types=1);
+
+// Simple test inventory generator for Pest tests.
+// Usage: php bin/generate-test-inventory [--path=tests] [--output=docs/tests.md]
+
+$argvOpts = [
+    'path' => 'tests',
+    'output' => 'docs/tests.md',
+];
+
+foreach ($argv as $arg) {
+    if (str_starts_with($arg, '--path=')) {
+        $argvOpts['path'] = substr($arg, 7);
+    } elseif (str_starts_with($arg, '--output=')) {
+        $argvOpts['output'] = substr($arg, 9);
+    }
+}
+
+$root = realpath(__DIR__ . '/..') ?: getcwd();
+$testsDir = realpath($root . DIRECTORY_SEPARATOR . $argvOpts['path']);
+if ($testsDir === false) {
+    fwrite(STDERR, "Tests directory not found: {$argvOpts['path']}\n");
+    exit(1);
+}
+
+$files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($testsDir));
+$phpFiles = array_values(array_filter(iterator_to_array($files), function ($file) {
+    return $file instanceof SplFileInfo
+        && $file->isFile()
+        && strtolower($file->getExtension()) === 'php';
+}));
+
+$inventory = [];
+
+foreach ($phpFiles as $file) {
+    $path = $file->getRealPath();
+    if ($path === false) { continue; }
+    $rel = ltrim(str_replace($root . DIRECTORY_SEPARATOR, '', $path), DIRECTORY_SEPARATOR);
+    // Normalize path separators to POSIX style for stable docs across OSes
+    $rel = str_replace('\\', '/', $rel);
+    $content = file_get_contents($path) ?: '';
+
+    $foundAny = false;
+
+    // Pest tests: it('desc', function (...) { ... });
+    $patternPest = '/\bit\s*\(\s*[\'\"](?P<name>[^\'\"]+)\s*[\'\"]\s*,\s*function\s*\([^)]*\)\s*\{(?P<body>.*?)\}\s*\)\s*;\s*/s';
+    if (preg_match_all($patternPest, $content, $matchesPest, PREG_SET_ORDER)) {
+        foreach ($matchesPest as $m) {
+            $foundAny = true;
+            $name = trim($m['name']);
+            $body = $m['body'];
+
+            // Collect assertions heuristically for Pest
+            $assertions = [];
+            if (preg_match_all('/->\s*(assert[A-Za-z0-9_]+)\s*\(/', $body, $am)) {
+                $assertions = array_values(array_unique($am[1]));
+            }
+            if (preg_match_all('/\bassertDatabase(H|M)issing\b/', $body, $dm)) {
+                foreach ($dm[0] as $a) { $assertions[] = $a; }
+            }
+            if (preg_match('/expect\s*\(/', $body)) {
+                $assertions[] = 'expect(...)';
+            }
+
+            $inventory[$rel][] = [
+                'name' => $name,
+                'assertions' => array_values(array_unique($assertions)),
+            ];
+        }
+    }
+
+    // PHPUnit tests: function testSomething() { ... }
+    $patternPHPUnit = '/function\s+(test[A-Za-z0-9_]+)\s*\([^)]*\)\s*(?::[^\{]+)?\s*\{(?P<body>.*?)\}/s';
+    if (preg_match_all($patternPHPUnit, $content, $matchesUnit, PREG_SET_ORDER)) {
+        foreach ($matchesUnit as $m) {
+            $foundAny = true;
+            $name = trim(str_replace('_', ' ', $m[1]));
+            $body = $m['body'];
+
+            $assertions = [];
+            if (preg_match_all('/\$this->\s*(assert[A-Za-z0-9_]+)\s*\(/', $body, $am)) {
+                $assertions = array_values(array_unique($am[1]));
+            }
+
+            $inventory[$rel][] = [
+                'name' => $name,
+                'assertions' => array_values(array_unique($assertions)),
+            ];
+        }
+    }
+
+    if (!$foundAny) {
+        continue;
+    }
+}
+
+// Build Markdown
+$out = [];
+$out[] = '# Test inventory for this package';
+$out[] = '';
+$out[] = 'Generated automatically by `bin/generate-test-inventory`. Edit tests to update this list.';
+$out[] = '';
+
+if (empty($inventory)) {
+    $out[] = '_No tests found._';
+} else {
+    ksort($inventory);
+    foreach ($inventory as $file => $tests) {
+        $out[] = '## ' . $file;
+        $out[] = '';
+        foreach ($tests as $t) {
+            $out[] = '- ' . $t['name'];
+            if (!empty($t['assertions'])) {
+                $out[] = '  - Assertions: ' . implode(', ', $t['assertions']);
+            }
+            $out[] = '';
+        }
+    }
+}
+
+// Ensure output dir exists
+$outputPath = $root . DIRECTORY_SEPARATOR . $argvOpts['output'];
+$dir = dirname($outputPath);
+if (!is_dir($dir)) {
+    if (!mkdir($dir, 0777, true) && !is_dir($dir)) {
+        fwrite(STDERR, "Failed to create output directory: {$dir}\n");
+        exit(1);
+    }
+}
+
+// Always write with LF line endings for consistent diffs
+file_put_contents($outputPath, implode("\n", $out));
+
+fwrite(STDOUT, "Test inventory written to {$argvOpts['output']}\n");

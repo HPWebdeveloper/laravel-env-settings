@@ -1,0 +1,14 @@
+# Composer
+vendor/
+composer.lock
+
+# PHPUnit
+.phpunit.result.cache
+
+# OS/Editor
+.DS_Store
+.idea/
+.vscode/
+
+# Tooling cache
+var/

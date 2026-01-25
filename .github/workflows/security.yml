@@ -1,0 +1,38 @@
+name: Security Audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  composer-audit:
+    name: Composer Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          coverage: none
+          tools: composer:v2
+
+      - name: Run composer audit
+        run: |
+          composer validate --strict
+          # Use --locked to audit the lock file and avoid network noise
+          if [ -f composer.lock ]; then
+            composer audit --locked --no-interaction
+          else
+            composer audit --no-interaction
+          fi

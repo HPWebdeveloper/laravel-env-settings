@@ -1,0 +1,188 @@
+name: Sync workflows from skeleton
+# sync-template: minor no-op tweak to verify propagation to children
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_repo:
+        description: "Source repository (owner/repo)"
+        required: false
+        default: "HPWebdeveloper/skeleton"
+  repository_dispatch:
+    types: [sync-child]
+  schedule:
+    - cron: "0 3 * * 1" # Weekly, Mondays 03:00 UTC
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: sync-skeleton-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    if: ${{ github.repository != 'HPWebdeveloper/skeleton' }}
+    name: Sync from skeleton
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Determine source repository
+        id: src
+        run: |
+          SRC_REPO="${{ github.event.client_payload.source_repo }}"
+          if [ -z "$SRC_REPO" ] || [ "$SRC_REPO" = "null" ]; then
+            SRC_REPO="${{ inputs.source_repo }}"
+            if [ -z "$SRC_REPO" ] || [ "$SRC_REPO" = "null" ]; then
+              SRC_REPO="HPWebdeveloper/skeleton"
+            fi
+          fi
+          echo "repo=$SRC_REPO" >> "$GITHUB_OUTPUT"
+
+      - name: Check SYNC_TOKEN presence
+        shell: bash
+        run: |
+          if [ -z "${{ secrets.SYNC_TOKEN }}" ]; then
+            echo "::error::Missing secret SYNC_TOKEN. Add a PAT with access to HPWebdeveloper/skeleton as a repo secret named SYNC_TOKEN."
+            exit 1
+          fi
+
+      - name: Verify token can access source repo
+        env:
+          TOKEN: ${{ secrets.SYNC_TOKEN }}
+          SRC_REPO: ${{ steps.src.outputs.repo }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Using source repo: ${SRC_REPO}"
+          CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${TOKEN}" \
+            "https://api.github.com/repos/${SRC_REPO}")
+          if [ "$CODE" != "200" ]; then
+            echo "::error::Token cannot access ${SRC_REPO}. HTTP ${CODE}. Ensure the PAT has repo access to this repository (classic PAT with repo scope or fine-grained PAT with Contents:Read & Metadata:Read), and is SSO-authorized for the org if applicable."
+            exit 1
+          fi
+
+      - name: Checkout skeleton source
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ steps.src.outputs.repo }}
+          path: _source
+          token: ${{ secrets.SYNC_TOKEN }}
+
+      - name: Sync workflow files and tooling (preserve local sync workflow)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Copy all workflows from source; exclude only the skeleton-only dispatcher
+          rsync -a --delete --exclude "dispatch-sync-to-*.yml" "_source/.github/workflows/" ".github/workflows/"
+          # Sync generator and attributes for stable docs
+          mkdir -p bin
+          cp -f _source/bin/generate-test-inventory bin/generate-test-inventory || true
+          # Sync post-install message helper if present
+          if [ -f _source/bin/post-install-message.php ]; then
+            cp -f _source/bin/post-install-message.php bin/post-install-message.php
+          fi
+          # Ensure .gitattributes contains LF rule for docs/tests.md
+          if [ -f .gitattributes ]; then
+            if ! grep -qE '^/docs/tests\.md\s+text\s+eol=lf$' .gitattributes; then
+              echo '/docs/tests.md text eol=lf' >> .gitattributes
+            fi
+          else
+            echo '/docs/tests.md text eol=lf' > .gitattributes
+          fi
+          # Sync PHPStan configuration to align static analysis across repos
+          if [ -f _source/phpstan.neon.dist ]; then
+            cp -f _source/phpstan.neon.dist phpstan.neon.dist
+          fi
+          # Sync PR template for consistent review checklist
+          if [ -f _source/.github/pull_request_template.md ]; then
+            mkdir -p .github
+            cp -f _source/.github/pull_request_template.md .github/pull_request_template.md
+          fi
+          # Sync Git hooks directory to keep local dev hygiene consistent
+          if [ -d _source/.githooks ]; then
+            rsync -a --delete "_source/.githooks/" ".githooks/"
+            # Ensure pre-commit is executable in the working tree (git will preserve mode on commit)
+            if [ -f .githooks/pre-commit ]; then chmod +x .githooks/pre-commit || true; fi
+          fi
+
+      - name: Cleanup dispatcher workflow in children (harmless)
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/dispatch-sync-to-*.yml || true
+
+      - name: Apply package-specific adjustments
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Ensure PHPStan uses additional memory for large analysis (if workflow exists)
+          sed -i.bak -E "s#(phpstan)(\s+)(--error-format=github)#\1 analyse --no-progress --memory-limit=512M \3#" .github/workflows/static-analysis.yml || true
+          rm -f .github/workflows/static-analysis.yml.bak
+
+          # Ensure composer.json has hook activation scripts so synced hooks are active locally
+          if [ -f composer.json ]; then
+            php -r '
+              $p = "composer.json";
+              $j = json_decode(file_get_contents($p), true);
+              if (!is_array($j)) { fwrite(STDERR, "composer.json is not valid JSON\n"); exit(0); }
+              $j["scripts"] = $j["scripts"] ?? [];
+              // Define hooks:enable
+              $hooks = [
+                "[ -d .git ] && git config core.hooksPath .githooks || true",
+                "[ -f .githooks/pre-commit ] && chmod +x .githooks/pre-commit || true"
+              ];
+              if (!isset($j["scripts"]["hooks:enable"]) || $j["scripts"]["hooks:enable"] !== $hooks) {
+                $j["scripts"]["hooks:enable"] = $hooks;
+                $changed = true;
+              }
+              // Ensure post-install-cmd and post-update-cmd include @hooks:enable
+              foreach (["post-install-cmd","post-update-cmd"] as $k) {
+                $arr = $j["scripts"]["$k"] ?? [];
+                if (is_string($arr)) { $arr = [$arr]; }
+                if (!in_array("@hooks:enable", $arr, true)) { $arr[] = "@hooks:enable"; $j["scripts"]["$k"] = $arr; $changed = true; }
+              }
+              // Write back only if changed
+              file_put_contents($p, json_encode($j, JSON_UNESCAPED_SLASHES|JSON_PRETTY_PRINT)."\n");
+            ' || true
+          fi
+
+      - name: Compute branch timestamp
+        id: ts
+        shell: bash
+        run: echo "stamp=$(date -u +%Y-%m-%d-%H%M)" >> "$GITHUB_OUTPUT"
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v8
+        with:
+          # Use PAT so updating workflow files is allowed
+          token: ${{ secrets.SYNC_TOKEN }}
+          commit-message: "chore(ci): sync workflows and tooling from skeleton"
+          title: "chore(ci): sync workflows from skeleton"
+          body: |
+            Automated sync from `${{ steps.src.outputs.repo }}` to `${{ github.repository }}`.
+
+            - Copied `.github/workflows/*`
+            - Synced `bin/generate-test-inventory`
+            - Synced `bin/post-install-message.php`
+            - Ensured `.gitattributes` has LF rule for docs/tests.md
+            - Applied package-specific PHPStan memory flag where applicable
+            - Synced `.githooks/*` (local dev hygiene) and ensured hook activation scripts in composer.json
+            - Synced `.github/pull_request_template.md` for consistent review checklist
+
+            If this looks good, merge to keep `${{ github.repository }}` aligned with skeleton.
+          branch: chore/sync-workflows-${{ steps.ts.outputs.stamp }}-${{ github.run_number }}
+          delete-branch: true
+          add-paths: |
+            .github/workflows/**
+            bin/generate-test-inventory
+            bin/post-install-message.php
+            .gitattributes
+            phpstan.neon.dist
+            .githooks/**
+            .github/pull_request_template.md

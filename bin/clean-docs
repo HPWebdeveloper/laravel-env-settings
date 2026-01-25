@@ -1,0 +1,41 @@
+#!/usr/bin/env php
+<?php
+/**
+ * Remove skeleton-only documentation from a child package after bootstrap.
+ * Safe to run multiple times. Exits with 0 even if files are already gone.
+ */
+
+$root = getcwd();
+
+$targets = [
+    '/docs/_skeleton',
+    '/docs/tests.md',
+    '/docs/templates',
+];
+
+function rrmdir(string $dir): void {
+    if (!is_dir($dir)) return;
+    $items = scandir($dir);
+    if ($items === false) return;
+    foreach ($items as $item) {
+        if ($item === '.' || $item === '..') continue;
+        $p = rtrim($dir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $item;
+        if (is_dir($p)) { rrmdir($p); } else { @unlink($p); }
+    }
+    @rmdir($dir);
+}
+
+foreach ($targets as $rel) {
+    $path = $root . $rel;
+    if (is_dir($path)) {
+        rrmdir($path);
+        echo "Removed directory: {$rel}\n";
+    } elseif (file_exists($path)) {
+        @unlink($path);
+        echo "Removed file: {$rel}\n";
+    } else {
+        echo "Already absent: {$rel}\n";
+    }
+}
+
+echo "Cleanup complete.\n";

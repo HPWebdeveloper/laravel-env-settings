@@ -1,0 +1,553 @@
+#!/usr/bin/env php
+<?php
+/**
+ * Interactive bootstrapper to rename this package scaffold.
+ *
+ * - Asks for: Vendor (Studly), Package name (kebab)
+ * - Renames namespaces, provider class/file, config file/key
+ * - Updates composer.json (name, description, keywords, psr-4, extra.laravel.providers, autoload-dev)
+ * - Optional config.platform.php
+ * - Updates test namespaces and config key references
+ * - Options: --minimal (clean skeleton-only docs), --ci=none|basic|full, --test-framework=phpunit|pest, --dry-run
+ * - Runs `composer dump-autoload` at the end (best-effort)
+ */
+
+function question(string $prompt, ?string $default = null): string {
+    $suffix = $default ? " [{$default}]" : '';
+    fwrite(STDOUT, $prompt . $suffix . ": ");
+    $line = trim(fgets(STDIN));
+    return $line !== '' ? $line : ($default ?? '');
+}
+
+function toStudly(string $value): string {
+    $value = str_replace(['-', '_', ' '], ' ', strtolower($value));
+    $value = ucwords($value);
+    return str_replace(' ', '', $value);
+}
+
+function toSlug(string $value): string {
+    $value = preg_replace('/[^A-Za-z0-9]+/', '-', strtolower($value));
+    return trim($value, '-');
+}
+
+function readJson(string $path): array {
+    if (!file_exists($path)) {
+        throw new RuntimeException("File not found: {$path}");
+    }
+    $raw = file_get_contents($path);
+    $data = json_decode($raw, true);
+    if (!is_array($data)) {
+        throw new RuntimeException("Invalid JSON in {$path}");
+    }
+    return $data;
+}
+
+function writeJson(string $path, array $data): void {
+    $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+    file_put_contents($path, $json);
+}
+
+function inferPhpVersionsFromComposer(array $composer): array {
+    $constraint = $composer['require']['php'] ?? '';
+    if (!is_string($constraint) || $constraint === '') return [];
+    preg_match_all('/(\d+\.\d+)/', $constraint, $m);
+    $versions = $m[1] ?? [];
+    $versions = array_values(array_unique($versions));
+    usort($versions, 'version_compare');
+    return $versions;
+}
+
+function inferLaravelMajorsFromComposer(array $composer): array {
+    $constraint = $composer['require']['illuminate/support'] ?? '';
+    if (!is_string($constraint) || $constraint === '') return [];
+    preg_match_all('/\^(\d+)\.\d+/', $constraint, $m);
+    $majors = $m[1] ?? [];
+    $majors = array_values(array_unique($majors));
+    sort($majors, SORT_NUMERIC);
+    return array_map('strval', $majors);
+}
+
+function buildPhpConstraintFromList(array $versions): string {
+    $versions = array_values(array_unique($versions));
+    usort($versions, 'version_compare');
+    return implode('|', array_map(fn($v) => '^'.$v, $versions));
+}
+
+function buildIlluminateConstraintFromMajors(array $majors): string {
+    $majors = array_values(array_unique($majors));
+    sort($majors, SORT_NUMERIC);
+    return implode('|', array_map(fn($m) => '^'.$m.'.0', $majors));
+}
+
+function buildTestbenchConstraintFromMajors(array $majors): string {
+    $map = [ '10' => '^8.0', '11' => '^9.0', '12' => '^10.0' ];
+    $out = [];
+    foreach ($majors as $m) {
+        if (isset($map[$m])) $out[] = $map[$m];
+    }
+    $out = array_values(array_unique($out));
+    return implode('|', $out);
+}
+
+function replaceInFile(string $path, array $replacements): void {
+    if (!file_exists($path)) return;
+    $contents = file_get_contents($path);
+    $new = strtr($contents, $replacements);
+    if ($new !== $contents) {
+        file_put_contents($path, $new);
+    }
+}
+
+function renameIfExists(string $from, string $to): void {
+    if (file_exists($from)) {
+        @mkdir(dirname($to), 0777, true);
+        rename($from, $to);
+    }
+}
+
+function argFlag(array $argv, string $flag): bool {
+    return in_array($flag, $argv, true);
+}
+
+function argValue(array $argv, string $key, ?string $default = null): ?string {
+    foreach ($argv as $arg) {
+        if (str_starts_with($arg, $key.'=')) {
+            return substr($arg, strlen($key) + 1);
+        }
+    }
+    return $default;
+}
+
+function writeFile(string $path, string $contents): void {
+    @mkdir(dirname($path), 0777, true);
+    file_put_contents($path, $contents);
+}
+
+function rrmdir(string $dir): void {
+    if (!is_dir($dir)) return;
+    $items = scandir($dir);
+    if ($items === false) return;
+    foreach ($items as $item) {
+        if ($item === '.' || $item === '..') continue;
+        $p = rtrim($dir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $item;
+        if (is_dir($p)) { rrmdir($p); } else { @unlink($p); }
+    }
+    @rmdir($dir);
+}
+
+$root = getcwd();
+$argvList = $argv ?? [];
+
+// Flags and options
+$minimal = argFlag($argvList, '--minimal');
+$ciPreset = argValue($argvList, '--ci', null); // none|basic|full
+$testFramework = argValue($argvList, '--test-framework', null); // phpunit|pest
+$dryRun = argFlag($argvList, '--dry-run');
+$setPlatformPhp = argValue($argvList, '--platform-php', null); // e.g. 8.3
+$composerPath = $root . '/composer.json';
+
+try {
+    $composer = readJson($composerPath);
+} catch (Throwable $e) {
+    fwrite(STDERR, "Error: {$e->getMessage()}\n");
+    exit(1);
+}
+
+// Current identifiers
+$oldPsr4 = $composer['autoload']['psr-4'] ?? [];
+$oldNamespace = null;
+if (!empty($oldPsr4)) {
+    $oldNamespace = array_key_first($oldPsr4);
+    $oldNamespace = rtrim($oldNamespace, '\\');
+}
+$oldNamespace = $oldNamespace ?: 'Vendor\\Package';
+$oldVendor = explode('\\', $oldNamespace)[0] ?? 'Vendor';
+$oldPackageStudly = explode('\\', $oldNamespace)[1] ?? 'Package';
+$oldProvider = $oldPackageStudly . 'ServiceProvider';
+$oldConfigKey = 'package';
+
+// Ask for new values
+$defaultVendor = $oldVendor === 'Vendor' ? 'YourVendor' : $oldVendor;
+$defaultPackageKebab = 'your-package';
+$vendorStudly = toStudly(question('Vendor (StudlyCase, e.g. Acme)', $defaultVendor));
+$packageKebab = toSlug(question('Package name (kebab-case, e.g. team-management)', $defaultPackageKebab));
+// Normalize namespace casing: Vendor StudlyCase, Package StudlyCase
+$normalizedVendor = $vendorStudly; // already Studly
+$packageStudly = toStudly($packageKebab);
+// Auto-derive config key from package name
+$configKey = toSlug($packageKebab);
+
+// Description / keywords
+$defaultDescription = $composer['description'] ?? '';
+$description = question('Description (for composer.json)', $defaultDescription);
+$keywordsCsv = question('Keywords (comma-separated)', 'laravel,package');
+$keywords = array_values(array_filter(array_map('trim', explode(',', $keywordsCsv))));
+
+// Version prompts (PHP and Laravel) - defaults inferred from composer.json
+$inferredPhp = inferPhpVersionsFromComposer($composer);
+$inferredLaravel = inferLaravelMajorsFromComposer($composer);
+$defaultPhpVersions = $inferredPhp ? implode(',', $inferredPhp) : '8.1,8.2,8.3';
+$defaultLaravelMajors = $inferredLaravel ? implode(',', $inferredLaravel) : '10,11,12';
+$phpVersionsInput = question('Supported PHP versions (comma-separated, e.g. 8.2,8.3)', $defaultPhpVersions);
+$laravelMajorsInput = question('Supported Laravel majors (comma-separated, e.g. 11,12)', $defaultLaravelMajors);
+
+$phpVersions = array_values(array_unique(array_filter(array_map('trim', explode(',', $phpVersionsInput)))));
+$laravelMajors = array_values(array_unique(array_filter(array_map('trim', explode(',', $laravelMajorsInput)))));
+
+// Determine latest PHP for CI basic preset
+$versionsSorted = $phpVersions;
+usort($versionsSorted, 'version_compare');
+$latestPhp = end($versionsSorted) ?: '8.3';
+
+$newNamespace = $normalizedVendor . '\\' . $packageStudly;
+$newProvider = $packageStudly . 'ServiceProvider';
+$newComposerName = strtolower($vendorStudly) . '/' . $packageKebab;
+
+fwrite(STDOUT, "\nPlan:\n");
+fprintf(STDOUT, "  Namespace: %s -> %s\n", $oldNamespace, $newNamespace);
+fprintf(STDOUT, "  Provider:  %s -> %s\n", $oldProvider, $newProvider);
+fprintf(STDOUT, "  Composer:  %s -> %s\n", $composer['name'] ?? 'vendor/package', $newComposerName);
+fprintf(STDOUT, "  Config:    %s -> %s\n\n", $oldConfigKey, $configKey);
+fprintf(STDOUT, "  PHP:       [%s]\n", implode(', ', $phpVersions));
+fprintf(STDOUT, "  Laravel:   [%s]\n", implode(', ', $laravelMajors));
+fprintf(STDOUT, "  Test:      %s\n", $testFramework ? $testFramework : 'phpunit');
+fprintf(STDOUT, "  CI:        %s\n", $ciPreset ? $ciPreset : 'basic');
+fprintf(STDOUT, "  Minimal:   %s\n", $minimal ? 'yes' : 'no');
+if ($setPlatformPhp) fprintf(STDOUT, "  platform.php: %s\n", $setPlatformPhp);
+fwrite(STDOUT, "\n");
+
+$confirm = strtolower(question('Proceed with these changes?', 'yes'));
+if (!in_array($confirm, ['y', 'yes'])) {
+    fwrite(STDOUT, "Aborted.\n");
+    exit(0);
+}
+
+if ($dryRun) {
+    fwrite(STDOUT, "Dry-run enabled. No changes applied.\n");
+    exit(0);
+}
+
+// 1) Update composer.json
+$composer['name'] = $newComposerName;
+$composer['autoload']['psr-4'] = [ $newNamespace . '\\' => 'src/' ];
+$composer['autoload-dev']['psr-4'] = [ $newNamespace . '\\Tests\\' => 'tests/' ];
+// Update provider FQCN in extra.laravel.providers
+if (isset($composer['extra']['laravel']['providers']) && is_array($composer['extra']['laravel']['providers'])) {
+    $composer['extra']['laravel']['providers'] = [ $newNamespace . "\\" . $newProvider ];
+}
+// Description / keywords
+$composer['description'] = $description;
+if (!empty($keywords)) {
+    $composer['keywords'] = $keywords;
+}
+// Optional platform.php
+if ($setPlatformPhp) {
+    if (!isset($composer['config'])) $composer['config'] = [];
+    if (!isset($composer['config']['platform'])) $composer['config']['platform'] = [];
+    $composer['config']['platform']['php'] = $setPlatformPhp;
+}
+// Optionally align composer constraints with selected versions
+$align = strtolower(question('Update composer constraints to match selected PHP/Laravel versions?', 'no'));
+if (in_array($align, ['y','yes'])) {
+    if (!isset($composer['require'])) $composer['require'] = [];
+    if (!isset($composer['require-dev'])) $composer['require-dev'] = [];
+    if (!empty($phpVersions)) {
+        $composer['require']['php'] = buildPhpConstraintFromList($phpVersions);
+    }
+    if (!empty($laravelMajors)) {
+        $composer['require']['illuminate/support'] = buildIlluminateConstraintFromMajors($laravelMajors);
+        $tb = buildTestbenchConstraintFromMajors($laravelMajors);
+        if ($tb !== '') {
+            $composer['require-dev']['orchestra/testbench'] = $tb;
+        }
+    }
+}
+writeJson($composerPath, $composer);
+
+// 2) Rename provider file and update contents
+$oldProviderPath = $root . '/src/' . $oldProvider . '.php';
+$newProviderPath = $root . '/src/' . $newProvider . '.php';
+renameIfExists($oldProviderPath, $newProviderPath);
+
+$replacementsProvider = [
+    'namespace ' . $oldNamespace . ';' => 'namespace ' . $newNamespace . ';',
+    'class ' . $oldProvider => 'class ' . $newProvider,
+    "'{$oldConfigKey}'" => "'{$configKey}'",
+    "/config/{$oldConfigKey}.php" => "/config/{$configKey}.php", // This line is unchanged
+    // Ensure config_path('old.php') becomes config_path('new.php')
+    "config_path('{$oldConfigKey}.php')" => "config_path('{$configKey}.php')",
+    // Update publish tags to use the new config key slug
+    "'{$oldConfigKey}-config'" => "'{$configKey}-config'",
+    "\"{$oldConfigKey}-config\"" => "\"{$configKey}-config\"",
+    "'{$oldConfigKey}-migrations'" => "'{$configKey}-migrations'",
+    "\"{$oldConfigKey}-migrations\"" => "\"{$configKey}-migrations\"",
+    "'{$oldConfigKey}-views'" => "'{$configKey}-views'",
+    "\"{$oldConfigKey}-views\"" => "\"{$configKey}-views\"",
+    // Update view publish path vendor folder
+    "resource_path('views/vendor/{$oldConfigKey}')" => "resource_path('views/vendor/{$configKey}')",
+    // Update loadViewsFrom namespace alias if present
+    ", 'ExamplePackage'" => ", '{$configKey}'",
+];
+replaceInFile($newProviderPath, $replacementsProvider);
+
+// 3) Rename config file and update contents
+$oldConfigPath = $root . '/config/' . $oldConfigKey . '.php';
+$newConfigPath = $root . '/config/' . $configKey . '.php';
+renameIfExists($oldConfigPath, $newConfigPath);
+
+$replacementsConfig = [
+    // No ExamplePackage-specific keys remain in the generic config; keep placeholder for future tweaks.
+];
+replaceInFile($newConfigPath, $replacementsConfig);
+
+// 4) Update tests namespace and config key usage
+$tests = [
+    $root . '/tests/TestCase.php',
+    $root . '/tests/Feature/ServiceProviderTest.php',
+    $root . '/tests/Pest.php',
+];
+foreach ($tests as $testFile) {
+    $testReplacements = [
+        // Namespace declarations: cover base Tests and subnamespaces like Tests\\Feature
+        'namespace ' . $oldNamespace . '\\Tests\\' => 'namespace ' . $newNamespace . '\\Tests\\',
+        'namespace ' . $oldNamespace . '\\Tests;' => 'namespace ' . $newNamespace . '\\Tests;',
+        'namespace ' . $oldVendor . '\\Tests\\' => 'namespace ' . $newNamespace . '\\Tests\\',
+        'namespace ' . $oldVendor . '\\Tests;' => 'namespace ' . $newNamespace . '\\Tests;',
+
+        // Use statements for TestCase and Provider
+        'use ' . $oldNamespace . '\\Tests\\TestCase' => 'use ' . $newNamespace . '\\Tests\\TestCase',
+        'use ' . $oldVendor . '\\Tests\\TestCase' => 'use ' . $newNamespace . '\\Tests\\TestCase',
+        'use ' . $oldNamespace . '\\' . $oldProvider => 'use ' . $newNamespace . '\\' . $newProvider,
+        'use ' . $oldVendor . '\\' . $oldProvider => 'use ' . $newNamespace . '\\' . $newProvider,
+
+        // Provider FQCN references
+        $oldNamespace . '\\' . $oldProvider . '::class' => $newNamespace . '\\' . $newProvider . '::class',
+        $oldVendor . '\\' . $oldProvider . '::class' => $newNamespace . '\\' . $newProvider . '::class',
+
+        // Short class name references (must come AFTER the FQCN replacements to avoid double-replacement)
+        $oldProvider . '::class' => $newProvider . '::class',
+
+        // Pest uses() call FQCN
+        '\\' . $oldNamespace . '\\Tests\\TestCase::class' => '\\' . $newNamespace . '\\Tests\\TestCase::class',
+        '\\' . $oldVendor . '\\Tests\\TestCase::class' => '\\' . $newNamespace . '\\Tests\\TestCase::class',
+
+        // Config key usages
+        "config('{$oldConfigKey}')" => "config('{$configKey}')",
+        "config(\"{$oldConfigKey}\")" => "config(\"{$configKey}\")",
+    ];
+    replaceInFile($testFile, $testReplacements);
+}
+
+// 5) Optional: test framework selection (Pest)
+if ($testFramework && strtolower($testFramework) === 'pest') {
+    $composer = readJson($composerPath);
+    if (!isset($composer['require-dev'])) $composer['require-dev'] = [];
+    $composer['require-dev']['pestphp/pest'] = '^2.34';
+    writeJson($composerPath, $composer);
+    $pestBootstrap = $root . '/tests/Pest.php';
+    if (!file_exists($pestBootstrap)) {
+        $nsEsc = addslashes($newNamespace);
+        $contents = <<<'PHP'
+    <?php
+
+    uses("__NS__\Tests\TestCase::class").in('Feature');
+    PHP;
+        $contents = str_replace('__NS__', $nsEsc, $contents);
+        writeFile($pestBootstrap, $contents);
+    }
+}
+
+// 6) CI presets
+$ciPreset = $ciPreset ?: 'basic';
+if (in_array($ciPreset, ['none','basic','full'], true)) {
+    $ciDir = $root . '/.github/workflows';
+    @mkdir($ciDir, 0777, true);
+    $ciPathYml = $ciDir . '/ci.yml';
+    $fullTemplate = $root . '/docs/_skeleton/backup-full-ci.yaml';
+    if ($ciPreset === 'none') {
+        if (file_exists($ciPathYml)) @unlink($ciPathYml);
+    } elseif ($ciPreset === 'basic') {
+        if (!file_exists($ciPathYml)) {
+            writeFile($ciPathYml, <<<YML
+name: CI (basic)
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "{$latestPhp}"
+      - run: composer validate --strict
+      - run: composer update --no-interaction --prefer-dist --no-progress
+      - run: composer normalize --dry-run
+      - run: ./vendor/bin/phpstan analyse --no-progress
+      - run: ./vendor/bin/phpunit
+YML);
+        }
+    } elseif ($ciPreset === 'full' && file_exists($fullTemplate)) {
+        copy($fullTemplate, $ciPathYml);
+    }
+}
+
+// 7) Minimal mode cleanup (remove skeleton-only docs)
+if ($minimal) {
+    // Prefer removing the skeleton docs folder entirely if present
+    rrmdir($root . '/docs/_skeleton');
+    // Remove test inventory and templates
+    @unlink($root . '/docs/tests.md');
+    rrmdir($root . '/docs/templates');
+}
+
+// 8) Try to run composer dump-autoload
+$cmd = 'composer dump-autoload 2>&1';
+exec($cmd, $output, $code);
+if ($code !== 0) {
+    fwrite(STDERR, "\ncomposer dump-autoload failed (you can run it manually). Output:\n" . implode("\n", $output) . "\n");
+}
+
+fwrite(STDOUT, "\nDone. Review changes and run tests: \n  - composer test\n  - composer stan\n\n");
+
+// 9) Update CI matrix (YAML-safe replacements)
+$ciPath = $root . '/.github/workflows/ci.yml';
+if (file_exists($ciPath)) {
+    $ci = file($ciPath, FILE_IGNORE_NEW_LINES);
+    $lines = $ci !== false ? $ci : [];
+    $out = [];
+    $inMatrix = false;
+    $inExclude = false;
+    $inCase = false;
+    $caseStart = -1; $caseEnd = -1;
+    foreach ($lines as $idx => $line) {
+        $trim = ltrim($line);
+        // Detect matrix block start
+        if (preg_match('/^\s*matrix:\s*$/', $line)) {
+            $inMatrix = true;
+            $out[] = $line;
+            continue;
+        }
+        if ($inMatrix) {
+            // Update php list
+            if (preg_match('/^\s*php:\s*\[.*\]/', $line)) {
+                $encoded = array_map(fn($v) => '"'.trim($v).'"', $phpVersions);
+                $out[] = preg_replace('/\[.*\]/', '['.implode(', ', $encoded).']', $line);
+                continue;
+            }
+            // Update laravel list
+            if (preg_match('/^\s*laravel:\s*\[.*\]/', $line)) {
+                $encoded = array_map(fn($v) => '"'.trim($v).'"', $laravelMajors);
+                $out[] = preg_replace('/\[.*\]/', '['.implode(', ', $encoded).']', $line);
+                continue;
+            }
+            // Track exclude block boundaries
+            if (preg_match('/^\s*exclude:\s*$/', $line)) {
+                $inExclude = true;
+                // Replace exclude block dynamically; skip appending current line now, we'll add regenerated lines below
+                // Generate excludes based on PHP min requirements for each Laravel major
+                $minPhpFor = [ '10' => '8.1', '11' => '8.2', '12' => '8.3' ];
+                $out[] = $line;
+                $out[] = '          # Auto-generated by bootstrap';
+                foreach ($laravelMajors as $L) {
+                    $min = $minPhpFor[$L] ?? null;
+                    if (!$min) { continue; }
+                    foreach ($phpVersions as $P) {
+                        if (version_compare($P, $min, '<')) {
+                            $out[] = '          - php: "'.$P.'"';
+                            $out[] = '            laravel: "'.$L.'"';
+                        }
+                    }
+                }
+                continue;
+            }
+            if ($inExclude) {
+                // Skip original exclude entries until we hit a non-indented block (less than 10 spaces) or blank separating next section
+                if (preg_match('/^\s{10}/', $line)) {
+                    // skip
+                    continue;
+                } else {
+                    $inExclude = false;
+                    // fall through to normal handling of this line
+                }
+            }
+            // Exit matrix block when indentation drops (heuristic)
+            if (preg_match('/^\s{6}[a-zA-Z]/', $line)) {
+                $inMatrix = false;
+            }
+        }
+
+        // Update case mapping block
+        if (preg_match('/case \"\$LARAVEL\" in/', $line)) {
+            $inCase = true; $caseStart = count($out);
+            $out[] = $line;
+            continue;
+        }
+        if ($inCase) {
+            if (preg_match('/^\s*esac\s*$/', trim($line))) {
+                // Insert regenerated mapping before esac
+                $map = [ '10' => '^8.0', '11' => '^9.0', '12' => '^10.0' ];
+                foreach ($laravelMajors as $L) {
+                    if (!isset($map[$L])) continue;
+                    $out[] = '            ' . $L . ') TESTBENCH="' . $map[$L] . '" ;;';
+                }
+                $out[] = '            *) echo "Unsupported Laravel version: $LARAVEL" ; exit 1 ;;';
+                $out[] = '          esac';
+                $inCase = false;
+                continue;
+            }
+            // Skip original mapping lines
+            if (preg_match('/\) TESTBENCH=|\*\)/', $line)) {
+                continue;
+            }
+        }
+
+        $out[] = $line;
+    }
+
+    file_put_contents($ciPath, implode("\n", $out) . "\n");
+}
+
+// 7) Optional README badge updates (skip if not present)
+$readme = $root . '/README.md';
+if (file_exists($readme)) {
+    $contents = file_get_contents($readme);
+    $changed = false;
+    // Update PHP badge if present
+    if (strpos($contents, 'shields.io') !== false && preg_match('/(PHP-)([^-\)]+)(-)/', $contents)) {
+        $label = implode('%20|%20', array_map('urlencode', $phpVersions));
+        $contents = preg_replace('/(PHP-)([^-\)]+)(-)/', '$1' . $label . '$3', $contents, 1, $cnt);
+        if ($cnt > 0) { $changed = true; }
+    }
+    // Update Laravel badge if present
+    if (strpos($contents, 'shields.io') !== false && preg_match('/(Laravel-)([^-\)]+)(-)/', $contents)) {
+        $label = implode('%20|%20', array_map('urlencode', $laravelMajors));
+        $contents = preg_replace('/(Laravel-)([^-\)]+)(-)/', '$1' . $label . '$3', $contents, 1, $cnt2);
+        if ($cnt2 > 0) { $changed = true; }
+    }
+    if ($changed) {
+        file_put_contents($readme, $contents);
+    }
+}
+
+// 8) Sync static-analysis.yml PHP version to latest selected PHP
+$staticPath = $root . '/.github/workflows/static-analysis.yml';
+if (file_exists($staticPath) && !empty($phpVersions)) {
+    $versionsSorted = $phpVersions;
+    usort($versionsSorted, 'version_compare');
+    $latestPhp = end($versionsSorted);
+    $lines = file($staticPath, FILE_IGNORE_NEW_LINES);
+    if ($lines !== false) {
+        $out = [];
+        $replaced = false;
+        foreach ($lines as $line) {
+            if (!$replaced && preg_match('/^\s*php-version:\s*.*$/', $line)) {
+                $indent = str_repeat(' ', strlen($line) - strlen(ltrim($line)));
+                $out[] = $indent . 'php-version: "' . $latestPhp . '"';
+                $replaced = true;
+            } else {
+                $out[] = $line;
+            }
+        }
+        file_put_contents($staticPath, implode("\n", $out) . "\n");
+    }
+}

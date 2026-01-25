@@ -1,0 +1,74 @@
+{
+  "name": "vendor/package",
+  "description": "Package description.",
+  "license": "MIT",
+  "type": "library",
+  "authors": [
+    {
+      "name": "Author Name",
+      "email": "author@example.com"
+    }
+  ],
+  "require": {
+    "php": "^8.3",
+    "illuminate/support": "^12.0"
+  },
+  "require-dev": {
+    "ergebnis/composer-normalize": "^2.48",
+    "larastan/larastan": "^3.8.1",
+    "laravel/pint": "^1.26",
+    "orchestra/testbench": "^10.8.0",
+    "orchestra/workbench": "^10.0.7",
+    "phpstan/phpstan": "^2.1.33",
+    "phpunit/phpunit": "^12.5.4"
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true,
+  "autoload": {
+    "psr-4": {
+      "Vendor\\Package\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Vendor\\Package\\Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "allow-plugins": {
+      "ergebnis/composer-normalize": true
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Vendor\\Package\\PackageServiceProvider"
+      ]
+    }
+  },
+  "scripts": {
+    "post-install-cmd": [
+      "@hooks:enable",
+      "php bin/post-install-message.php"
+    ],
+    "post-update-cmd": [
+      "@hooks:enable",
+      "php bin/post-install-message.php"
+    ],
+    "bootstrap": "php bin/bootstrap",
+    "clean:docs": "php bin/clean-docs",
+    "composer:normalize": "composer normalize",
+    "composer:normalize:check": "composer normalize --dry-run --no-interaction",
+    "docs:tests": "php bin/generate-test-inventory",
+    "format": "pint",
+    "format:check": "pint --test",
+    "format:dirty": "pint --dirty",
+    "hooks:enable": [
+      "[ -d .git ] && git config core.hooksPath .githooks || true",
+      "[ -f .githooks/pre-commit ] && chmod +x .githooks/pre-commit || true"
+    ],
+    "new:package": "php bin/bootstrap",
+    "stan": "phpstan analyse --no-progress --memory-limit=512M src",
+    "test": "phpunit"
+  }
+}

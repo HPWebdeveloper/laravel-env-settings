@@ -1,0 +1,94 @@
+name: CI
+# touching: trigger children sync when workflows change
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: PHP 8.3 • L12 • deps=highest • OS=ubuntu-latest
+    runs-on: ubuntu-latest
+    env:
+      # Throttle parallel HTTP downloads to reduce GitHub codeload 429 rate limit occurrences for all child packages inheriting this workflow.
+      COMPOSER_MAX_PARALLEL_HTTP: 6
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup PHP (8.3)
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, dom, pdo, sqlite3, pdo_sqlite, fileinfo
+          coverage: none
+          tools: composer:v2
+
+      - name: Validate composer.json
+        run: composer validate --strict
+
+      - name: Configure GitHub OAuth for Composer (improves API rate limits)
+        run: composer config -g github-oauth.github.com "${{ secrets.GITHUB_TOKEN }}"
+        # GITHUB_TOKEN is automatically provided by Actions; using it boosts authenticated quota for metadata requests.
+
+      - name: Get Composer cache directory
+        shell: bash
+        id: composer-cache
+        run: |
+          echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache Composer files
+        uses: actions/cache@v5
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-php83-highest-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-php83-highest-
+            ${{ runner.os }}-composer-php83-
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Starting composer update with limited parallel HTTP=${COMPOSER_MAX_PARALLEL_HTTP}";
+          for attempt in 1 2 3; do
+            if composer update --no-interaction --prefer-dist --no-progress; then
+              break
+            fi
+            echo "Composer update failed (attempt ${attempt}). Retrying after backoff..." >&2
+            sleep $((attempt*15))
+          done
+          echo "Composer dependencies installed.";
+
+      - name: Clear testbench cache
+        run: |
+          rm -rf vendor/orchestra/testbench-core/laravel/bootstrap/cache/*
+          rm -rf vendor/orchestra/testbench-core/laravel/database/database.sqlite
+
+      - name: Run test suite
+        run: composer test
+
+      - name: Check test inventory docs up-to-date
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Generate the latest test inventory
+          composer docs:tests
+          # Fail if docs/tests.md changed compared to the committed version
+          if ! git diff --quiet -- docs/tests.md; then
+            echo "::error title=Out-of-date test inventory::docs/tests.md is not up-to-date." >&2
+            echo "Run the following locally and commit the result:" >&2
+            echo "  composer docs:tests && git add docs/tests.md && git commit -m 'chore(docs): update test inventory'" >&2
+            echo "\nChanges:" >&2
+            git --no-pager diff -- docs/tests.md || true
+            exit 1
+          fi

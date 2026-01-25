@@ -1,0 +1,33 @@
+name: Code Style
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: style-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pint:
+    name: Laravel Pint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Run Pint --test
+        # Use the community Pint action to avoid managing installation.
+        # Explicit version avoids invalid "latest" constraint errors.
+        uses: aglipanci/laravel-pint-action@v2
+        with:
+          preset: laravel
+          verboseMode: true
+          pintVersion: "1.25.1"
+          useComposer: false
+        env:
+          PINT_ARGS: --test

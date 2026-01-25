@@ -1,0 +1,34 @@
+name: Composer Normalize
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: normalize-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  normalize:
+    name: Check composer.json normalization
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dev tools
+        run: composer update --no-interaction --prefer-dist --no-progress
+
+      - name: Run composer-normalize (dry-run)
+        run: composer normalize --dry-run --no-interaction

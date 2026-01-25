@@ -1,0 +1,35 @@
+name: Static Analysis
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: static-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  phpstan:
+    name: PHPStan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, dom
+          coverage: none
+          tools: composer:v2
+
+      - name: Install composer dependencies
+        uses: ramsey/composer-install@v3
+
+      - name: Run static analysis (GitHub annotations)
+        run: ./vendor/bin/phpstan analyse --no-progress --memory-limit=512M --error-format=github src

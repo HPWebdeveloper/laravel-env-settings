@@ -1,0 +1,83 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write # needed to create GitHub Releases
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test_and_release:
+    name: Test and create release
+    runs-on: ubuntu-latest
+    env:
+      COMPOSER_MAX_PARALLEL_HTTP: 6
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, dom, pdo, sqlite3, pdo_sqlite
+          coverage: none
+          tools: composer:v2
+
+      - name: Validate composer.json
+        run: composer validate --strict
+
+      - name: Configure GitHub OAuth for Composer
+        run: composer config -g github-oauth.github.com "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache Composer files
+        uses: actions/cache@v5
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-release-${{ hashFiles('composer.json') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-release-
+
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          echo "Starting composer update with limited parallel HTTP=${COMPOSER_MAX_PARALLEL_HTTP}";
+          for attempt in 1 2 3; do
+            if composer update --no-interaction --prefer-dist --no-progress; then
+              break
+            fi
+            echo "Composer update failed (attempt ${attempt}). Retrying after backoff..." >&2
+            sleep $((attempt*15))
+          done
+          echo "Composer dependencies installed.";
+
+      - name: Run test suite
+        run: composer test
+
+      - name: Build release ZIP
+        run: |
+          NAME="${{ github.event.repository.name }}"
+          git archive --format zip --output "${NAME}-${{ github.ref_name }}.zip" HEAD
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            ${{ github.event.repository.name }}-${{ github.ref_name }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # To notify Packagist or Private Packagist after tagging, add a step here that
+      # performs an authenticated POST to the appropriate update endpoint.
+      # (Omitted by default to avoid referencing secrets in this workflow template.)
