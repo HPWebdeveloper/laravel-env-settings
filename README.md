@@ -38,3 +38,8 @@ while they are not secret and also you may have many of these settings.
 how do you load them once?
 
 
+or you want to run all the queue by one name default in the local and in the production you want to give prioority and different queue names.
+
+in this case how do you approach it?
+
+
