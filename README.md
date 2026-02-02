@@ -43,3 +43,8 @@ or you want to run all the queue by one name default in the local and in the pro
 in this case how do you approach it?
 
 
+you have command that must be run in the production every one hour, but in the local you want it run everyminutes, this is not a secret config key, how do you handle it?
+
+
+
+
