@@ -45,6 +45,7 @@ in this case how do you approach it?
 
 you have command that must be run in the production every one hour, but in the local you want it run everyminutes, this is not a secret config key, how do you handle it?
 
+ha? https://github.com/gauravrjoshi/laravel-settings
 
 
 
