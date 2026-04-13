@@ -2,6 +2,47 @@
 
 Generated automatically by `bin/generate-test-inventory`. Edit tests to update this list.
 
+## tests/Feature/RegistrationTest.php
+
+- test auto registered class resolves for current environment
+  - Assertions: assertSame, assertTrue
+
+- test auto registered class resolves development for local
+  - Assertions: assertSame, assertFalse
+
+- test multiple classes can be auto registered
+  - Assertions: assertSame
+
+- test auto registered classes are singletons
+  - Assertions: assertSame
+
+- test invalid class in register array is ignored
+  - Assertions: assertInstanceOf
+
+- test manual singleton registration works
+  - Assertions: assertSame
+
+- test manual registration is singleton
+  - Assertions: assertSame
+
+- test root settings resolves nested sub settings
+  - Assertions: assertInstanceOf, assertSame
+
+- test root settings resolves development nested
+  - Assertions: assertSame
+
+- test root settings resolves staging nested
+  - Assertions: assertSame
+
+- test root settings can be auto registered
+  - Assertions: assertSame
+
+- test env settings helper works with auto registration
+  - Assertions: assertSame
+
+- test env settings helper works with nested root
+  - Assertions: assertSame
+
 ## tests/Feature/ServiceProviderTest.php
 
 - test config is merged
