@@ -6,7 +6,7 @@
 
 **Environment-aware, type-safe configuration classes for Laravel.**
 
-Move non-secret values out of `.env` and into typed, IDE-friendly PHP classes that resolve automatically based on your current environment.
+Move non-secret values out of `.env` and into typed, IDE-friendly PHP classes that resolve automatically based on your current _environment_.
 
 ---
 
