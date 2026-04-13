@@ -2,6 +2,26 @@
 
 Generated automatically by `bin/generate-test-inventory`. Edit tests to update this list.
 
+## tests/Feature/OverrideTest.php
+
+- test resolve uses override class when enabled
+  - Assertions: assertSame
+
+- test override class still resolves environment correctly
+  - Assertions: assertSame
+
+- test resolve ignores override when disabled
+  - Assertions: assertSame
+
+- test resolve falls back to normal when no override file
+  - Assertions: assertSame
+
+- test resolve falls back when override path missing
+  - Assertions: assertSame
+
+- test resolve falls back when override namespace is null
+  - Assertions: assertSame
+
 ## tests/Feature/RegistrationTest.php
 
 - test auto registered class resolves for current environment

@@ -53,6 +53,8 @@ return [
 
     'override_path' => app_path('Settings/Overrides'),
 
+    'override_namespace' => 'App\\Settings\\Overrides',
+
     /*
     |--------------------------------------------------------------------------
     | Auto-Register Settings
