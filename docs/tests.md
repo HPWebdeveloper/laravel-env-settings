@@ -2,6 +2,68 @@
 
 Generated automatically by `bin/generate-test-inventory`. Edit tests to update this list.
 
+## tests/Commands/DiffEnvSettingsCommandTest.php
+
+- test diff shows differences between environments
+  - Assertions: assertSame, assertStringContainsString
+
+- test diff shows no differences when same env
+  - Assertions: assertSame, assertStringContainsString
+
+- test diff works with staging
+  - Assertions: assertSame, assertStringContainsString
+
+- test diff fails for invalid class
+  - Assertions: assertSame
+
+- test diff fails for invalid environment method
+  - Assertions: assertSame
+
+- test diff marks different values
+  - Assertions: assertSame, assertStringContainsString
+
+## tests/Commands/MakeEnvSettingsCommandTest.php
+
+- test it creates a settings class file
+  - Assertions: assertFileExists
+
+- test generated file contains correct class name
+  - Assertions: assertStringContainsString
+
+- test generated file has development and production methods
+  - Assertions: assertStringContainsString
+
+- test generated file has default example property when no properties given
+  - Assertions: assertStringContainsString
+
+- test properties option generates typed constructor
+  - Assertions: assertStringContainsString
+
+- test properties option generates correct defaults in factory methods
+  - Assertions: assertStringContainsString
+
+- test it fails if file already exists
+
+- test generated file has correct use statement
+  - Assertions: assertStringContainsString
+
+## tests/Commands/ShowEnvSettingsCommandTest.php
+
+- test show displays resolved settings for a class
+  - Assertions: assertSame, assertStringContainsString
+
+- test show displays all registered classes
+  - Assertions: assertSame, assertStringContainsString
+
+- test show warns when no classes registered
+  - Assertions: assertSame, assertStringContainsString
+
+- test show fails for invalid class
+  - Assertions: assertSame
+
+- test show displays boolean values correctly
+  - Assertions: assertSame, assertStringContainsString
+
 ## tests/Feature/OverrideTest.php
 
 - test resolve uses override class when enabled

@@ -1,0 +1,28 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use HpWebDeveloper\LaravelEnvSettings\EnvironmentSettings;
+
+class {{ class }} extends EnvironmentSettings
+{
+    public function __construct(
+{{ properties }}
+    ) {}
+
+    public static function development(): static
+    {
+        return new static(
+{{ developmentValues }}
+        );
+    }
+
+    public static function production(): static
+    {
+        return new static(
+{{ productionValues }}
+        );
+    }
+}

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace HpWebDeveloper\LaravelEnvSettings;
 
+use HpWebDeveloper\LaravelEnvSettings\Commands\DiffEnvSettingsCommand;
+use HpWebDeveloper\LaravelEnvSettings\Commands\MakeEnvSettingsCommand;
+use HpWebDeveloper\LaravelEnvSettings\Commands\ShowEnvSettingsCommand;
 use Illuminate\Support\ServiceProvider;
 
 class EnvSettingsServiceProvider extends ServiceProvider
@@ -21,6 +24,12 @@ class EnvSettingsServiceProvider extends ServiceProvider
             $this->publishes([
                 __DIR__.'/../config/env-settings.php' => config_path('env-settings.php'),
             ], 'env-settings-config');
+
+            $this->commands([
+                MakeEnvSettingsCommand::class,
+                ShowEnvSettingsCommand::class,
+                DiffEnvSettingsCommand::class,
+            ]);
         }
     }
 
