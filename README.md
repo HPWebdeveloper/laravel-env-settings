@@ -16,6 +16,8 @@ Then read this:
 
 - https://github.com/HPWebdeveloper/document-hb-pattern/blob/main/7-why-not-just-env.md
 
+- setting + config() + .env is what makes system more agile
+
 and add more from there to this readme.
 
 **Environment-aware, type-safe configuration classes for Laravel.**
