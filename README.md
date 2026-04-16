@@ -6,6 +6,9 @@
 
 ### 50–80% of a typical enterprise .env is not secret.
 
+First run this demo to see how it works:
+https://github.com/HPWebdeveloper/laravel-env-setting-demo
+
 and `.env` should get smaller and contains only secrets. PHP classes hold the non-secret operational truth of the system.
 
 First read this part "This package is for you if…" from the
@@ -19,6 +22,8 @@ Then read this:
 - setting + config() + .env is what makes system more agile
 
 and add more from there to this readme.
+
+also read this /Volumes/source/projects/hbmarket/delete/document-hb-pattern/7-why-not-just-env.md to add more from it specially the reasoning.
 
 **Environment-aware, type-safe configuration classes for Laravel.**
 
