@@ -4,6 +4,12 @@
 [![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/hpwebdeveloper/laravel-env-settings/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/hpwebdeveloper/laravel-env-settings/actions?query=workflow%3Arun-tests+branch%3Amain)
 [![Total Downloads](https://img.shields.io/packagist/dt/hpwebdeveloper/laravel-env-settings.svg?style=flat-square)](https://packagist.org/packages/hpwebdeveloper/laravel-env-settings)
 
+First read this part "This package is for you if…" from the
+readme of this package:
+https://github.com/HPWebdeveloper/document-hb-pattern
+
+and add more from there to this readme.
+
 **Environment-aware, type-safe configuration classes for Laravel.**
 
 Move non-secret values out of `.env` and into typed, IDE-friendly PHP classes that resolve automatically based on your current _environment_.
