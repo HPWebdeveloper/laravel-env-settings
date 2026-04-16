@@ -76,7 +76,7 @@ abstract class EnvironmentSettings extends Data implements EnvironmentAware
             return null;
         }
 
-        $shortName = (new \ReflectionClass(static::class))->getShortName();
+        $shortName = class_basename(static::class);
         $filePath = rtrim($overridePath, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.$shortName.'.php';
 
         if (! File::exists($filePath)) {

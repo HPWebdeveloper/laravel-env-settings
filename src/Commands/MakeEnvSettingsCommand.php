@@ -74,7 +74,7 @@ class MakeEnvSettingsCommand extends Command
 
         $namespace = str_replace(DIRECTORY_SEPARATOR, '\\', $relativePath);
 
-        return 'App'.ltrim($namespace, '\\');
+        return 'App\\'.trim($namespace, '\\');
     }
 
     /**

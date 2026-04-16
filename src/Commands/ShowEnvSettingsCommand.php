@@ -76,7 +76,7 @@ class ShowEnvSettingsCommand extends Command
 
         foreach ($reflection->getProperties(ReflectionProperty::IS_PUBLIC) as $prop) {
             $name = $prop->getName();
-            $type = (string) $prop->getType();
+            $type = $prop->hasType() ? (string) $prop->getType() : 'mixed';
             $value = $prop->getValue($instance);
 
             $displayed = $this->formatValue($name, $value);
@@ -107,6 +107,14 @@ class ShowEnvSettingsCommand extends Command
 
         if ($value instanceof EnvironmentSettings) {
             return '[nested: '.get_class($value).']';
+        }
+
+        if (is_object($value) && ! method_exists($value, '__toString')) {
+            return '[object: '.get_class($value).']';
+        }
+
+        if ($value === null) {
+            return 'null';
         }
 
         return (string) $value;
