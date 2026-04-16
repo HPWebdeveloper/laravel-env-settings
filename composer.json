@@ -29,7 +29,8 @@
     "orchestra/testbench": "^10.8.0",
     "orchestra/workbench": "^10.0.7",
     "phpstan/phpstan": "^2.1.33",
-    "phpunit/phpunit": "^12.5.4"
+    "phpunit/phpunit": "^12.5.4",
+    "spatie/guidelines-skills": "dev-main"
   },
   "minimum-stability": "stable",
   "prefer-stable": true,
