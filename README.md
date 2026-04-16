@@ -4,9 +4,17 @@
 [![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/hpwebdeveloper/laravel-env-settings/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/hpwebdeveloper/laravel-env-settings/actions?query=workflow%3Arun-tests+branch%3Amain)
 [![Total Downloads](https://img.shields.io/packagist/dt/hpwebdeveloper/laravel-env-settings.svg?style=flat-square)](https://packagist.org/packages/hpwebdeveloper/laravel-env-settings)
 
+### 50–80% of a typical enterprise .env is not secret.
+
+and `.env` should get smaller and contains only secrets. PHP classes hold the non-secret operational truth of the system.
+
 First read this part "This package is for you if…" from the
 readme of this package:
 https://github.com/HPWebdeveloper/document-hb-pattern
+
+Then read this:
+
+- https://github.com/HPWebdeveloper/document-hb-pattern/blob/main/7-why-not-just-env.md
 
 and add more from there to this readme.
 
