@@ -6,9 +6,10 @@ namespace HpWebDeveloper\LaravelEnvSettings;
 
 use HpWebDeveloper\LaravelEnvSettings\Contracts\EnvironmentAware;
 use Illuminate\Support\Facades\File;
-use Spatie\LaravelData\Data;
+use ReflectionClass;
+use ReflectionProperty;
 
-abstract class EnvironmentSettings extends Data implements EnvironmentAware
+abstract class EnvironmentSettings implements EnvironmentAware
 {
     abstract public static function development(): static;
 
@@ -35,6 +36,34 @@ abstract class EnvironmentSettings extends Data implements EnvironmentAware
         }
 
         return static::resolveForEnvironment();
+    }
+
+    /**
+     * Return the public, typed properties of this settings instance as an array.
+     *
+     * Nested {@see EnvironmentSettings} instances are recursively expanded so the
+     * result is a plain, JSON-serialisable structure.
+     *
+     * @return array<string, mixed>
+     */
+    public function toArray(): array
+    {
+        $reflection = new ReflectionClass($this);
+        $data = [];
+
+        foreach ($reflection->getProperties(ReflectionProperty::IS_PUBLIC) as $property) {
+            if ($property->isStatic()) {
+                continue;
+            }
+
+            $value = $property->getValue($this);
+
+            $data[$property->getName()] = $value instanceof self
+                ? $value->toArray()
+                : $value;
+        }
+
+        return $data;
     }
 
     protected static function resolveForEnvironment(): static

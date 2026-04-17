@@ -59,8 +59,9 @@ envSettings(PaymentSettings::class)->mode        // visible in git, reviewable i
 ## Requirements
 
 - PHP 8.3+
-- Laravel 12.x
-- [Spatie Laravel Data](https://github.com/spatie/laravel-data) 4.x
+- Laravel 12.x / 13.x
+
+No other runtime dependencies.
 
 ## Installation
 
@@ -556,9 +557,9 @@ The 12-Factor App says config should be stored in the environment. We agree — 
 
 Use `.env` for values that must change without deployment. Use this package for values that should be reviewed before they change. In practice, most non-secret config changes (switching an AI model, changing a queue name) deserve a code review anyway.
 
-### Can I use this without Spatie Laravel Data?
+### Does this package have any third-party runtime dependencies?
 
-Currently, `spatie/laravel-data` is a required dependency. The base `EnvironmentSettings` class extends `Spatie\LaravelData\Data`, which provides DTOs, casting, and validation capabilities out of the box.
+No. The only runtime requirement beyond PHP 8.3 is `illuminate/support`, which you already have in any Laravel application. `EnvironmentSettings` is a plain abstract PHP class that uses native constructor property promotion and reflection — nothing more.
 
 ### What happens if `APP_ENV` doesn't match any environment?
 
