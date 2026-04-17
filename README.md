@@ -44,12 +44,12 @@ Move non-secret values out of `.env` and into typed, IDE-friendly PHP classes th
 // Before: scattered, untyped, invisible to code review
 $domain = config('services.auth0.domain');   // typo? runtime surprise
 $model = env('OPENAI_TEXT_MODEL');           // string? null? who knows
-$queue = env('PAYMENT_QUEUE', 'default');    // what's production's value? check the server
+$mode = env('PAYMENT_MODE', 'test');         // what's production's value? check the server
 
 // After: typed, environment-aware, in version control
 envSettings(AuthSettings::class)->domain         // string, IDE autocomplete
 envSettings(AiSettings::class)->text_model       // defined per environment
-envSettings(QueueSettings::class)->payment       // visible in git, reviewable in PRs
+envSettings(PaymentSettings::class)->mode        // visible in git, reviewable in PRs
 ```
 
 > **Note**: This package is NOT a database-backed settings manager (use [spatie/laravel-settings](https://github.com/spatie/laravel-settings) for that). It is NOT a feature flag system (use [Laravel Pennant](https://laravel.com/docs/pennant) for that). It is a **typed configuration layer** for non-secret values that differ between environments.
@@ -374,13 +374,13 @@ Generate a new settings class:
 
 ```bash
 # Basic
-php artisan env-settings:make QueueSettings
+php artisan env-settings:make NotificationSettings
 
 # With typed properties
-php artisan env-settings:make QueueSettings --properties="connection:string,payment_queue:string,max_workers:int"
+php artisan env-settings:make NotificationSettings --properties="sms_provider:string,default_channel:string,rate_limit_per_minute:int,sandbox_mode:bool"
 
 # Custom path
-php artisan env-settings:make QueueSettings --path=app/Settings/Infrastructure
+php artisan env-settings:make NotificationSettings --path=app/Settings/Infrastructure
 ```
 
 ### `env-settings:show`
@@ -508,14 +508,28 @@ class AiSettings extends EnvironmentSettings
 }
 ```
 
-Use it in your Prism/LLM integration:
+Use it with **Prism** or **Laravel AI SDK**:
 
 ```php
+// Using Prism (echolabs/prism)
 use EchoLabs\Prism\Prism;
 
 $ai = envSettings(AiSettings::class);
 
 $response = Prism::text()
+    ->using($ai->provider, $ai->text_model)
+    ->withMaxTokens($ai->max_tokens)
+    ->withPrompt('Summarize this document...')
+    ->asText();
+```
+
+```php
+// Using Laravel AI SDK (laravel/ai)
+use Laravel\Ai\Facades\Ai;
+
+$ai = envSettings(AiSettings::class);
+
+$response = Ai::text()
     ->using($ai->provider, $ai->text_model)
     ->withMaxTokens($ai->max_tokens)
     ->withPrompt('Summarize this document...')
