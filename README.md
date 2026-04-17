@@ -6,7 +6,7 @@
 
 ### 50–80% of a typical enterprise .env is not secret.
 
-First run this demo to see how it works:
+This package helps you keep `.env` for **secrets** and for the **stock Laravel keys**. `app/Settings/*.php` is for the **configuration your application adds on top of Laravel** — third-party integrations, AI providers, payment gateways, microservice endpoints, and every other non-secret value that varies by environment.
 https://github.com/HPWebdeveloper/laravel-env-setting-demo
 
 and `.env` should get smaller and contains only secrets. PHP classes hold the non-secret operational truth of the system.
@@ -549,6 +549,8 @@ Completely different purpose. Spatie's package stores settings **in the database
 ### Doesn't this violate the 12-Factor App methodology?
 
 The 12-Factor App says config should be stored in the environment. We agree — for **secrets**. But non-secret configuration (URLs, model names, feature flags) benefits from being in version control, type-safe, and reviewable. This package makes a deliberate distinction: secrets stay in `.env`, everything else lives in typed PHP classes.
+
+> **How Laravel reads `.env`:** Laravel's shipped `config/*.php` files translate `.env` keys into `config()` entries during the `LoadConfiguration` bootstrap step. Laravel's core managers (DB, cache, queue, mail, log, session, broadcast, filesystem, hasher) then read from `config()` at boot. Two keys — `APP_ENV` and `APP_KEY` — are read even earlier, before any service provider runs. That’s why the stock Laravel keys stay in `.env`, and this package targets only the configuration your application adds on top.
 
 ### What if I need to change a value without redeploying?
 
