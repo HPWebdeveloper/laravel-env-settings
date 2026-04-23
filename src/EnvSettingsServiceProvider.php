@@ -15,6 +15,10 @@ class EnvSettingsServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__.'/../config/env-settings.php', 'env-settings');
 
+        // Register the resolver as a singleton so it can be injected and mocked
+        // independently of any individual settings class.
+        $this->app->singleton(EnvSettingsResolver::class);
+
         $this->registerSettingsClasses();
     }
 
@@ -39,7 +43,10 @@ class EnvSettingsServiceProvider extends ServiceProvider
 
         foreach ($classes as $class) {
             if (is_string($class) && is_subclass_of($class, EnvironmentSettings::class)) {
-                $this->app->singleton($class, fn () => $class::resolve());
+                $this->app->singleton(
+                    $class,
+                    fn ($app) => $app[EnvSettingsResolver::class]->resolve($class),
+                );
             }
         }
     }
