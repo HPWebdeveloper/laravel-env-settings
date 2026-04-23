@@ -9,6 +9,8 @@ use Illuminate\Console\Command;
 use ReflectionClass;
 use ReflectionProperty;
 
+use function Laravel\Prompts\note;
+
 class ShowEnvSettingsCommand extends Command
 {
     protected $signature = 'env-settings:show
@@ -46,7 +48,7 @@ class ShowEnvSettingsCommand extends Command
 
         if (empty($classes)) {
             $this->warn('No settings classes registered in config(\'env-settings.register\').');
-            $this->line('Pass a class name directly: php artisan env-settings:show "App\\Settings\\AuthSettings"');
+            note('Pass a class name directly: php artisan env-settings:show "App\\Settings\\AuthSettings"');
 
             return self::SUCCESS;
         }

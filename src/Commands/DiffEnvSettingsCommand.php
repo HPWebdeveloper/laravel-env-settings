@@ -10,7 +10,10 @@ use ReflectionClass;
 use ReflectionMethod;
 use ReflectionProperty;
 
+use function Laravel\Prompts\error;
+use function Laravel\Prompts\note;
 use function Laravel\Prompts\select;
+use function Laravel\Prompts\warning;
 
 class DiffEnvSettingsCommand extends Command
 {
@@ -31,10 +34,10 @@ class DiffEnvSettingsCommand extends Command
         // to the interactive flow rather than hard-failing.
         if ($classArg !== null && (! class_exists($classArg) || ! is_subclass_of($classArg, EnvironmentSettings::class))) {
             if ($env1Arg === null && $env2Arg === null) {
-                $this->warn("'{$classArg}' is not a valid EnvironmentSettings subclass — falling back to interactive selection.");
+                warning("'{$classArg}' is not a valid EnvironmentSettings subclass — falling back to interactive selection.");
                 $classArg = null;
             } else {
-                $this->error("Class {$classArg} is not a valid EnvironmentSettings subclass.");
+                error("Class {$classArg} is not a valid EnvironmentSettings subclass.");
 
                 return self::FAILURE;
             }
@@ -43,24 +46,34 @@ class DiffEnvSettingsCommand extends Command
         $class = $classArg ?? $this->promptForClass();
 
         if ($class === null) {
-            $this->warn('No settings classes registered in config(\'env-settings.register\').');
-            $this->line('Usage: php artisan env-settings:diff "App\\Settings\\AuthSettings" development production');
+            warning('No settings classes registered in config(\'env-settings.register\').');
+            note('Usage: php artisan env-settings:diff "App\\Settings\\AuthSettings" development production');
 
             return self::SUCCESS;
         }
 
         $environments = $this->detectEnvironments($class);
-        $env1 = $env1Arg ?? select('First environment', $environments);
-        $env2 = $env2Arg ?? select('Second environment', array_values(array_diff($environments, [$env1])));
+        $env1 = $env1Arg ?? select(
+            label: 'First environment',
+            options: $environments,
+            hint: 'Select the base environment for the comparison.',
+            scroll: 10,
+        );
+        $env2 = $env2Arg ?? select(
+            label: 'Second environment',
+            options: array_values(array_diff($environments, [$env1])),
+            hint: 'Select the environment to compare against.',
+            scroll: 10,
+        );
 
         if (! method_exists($class, $env1)) {
-            $this->error("Method {$class}::{$env1}() does not exist.");
+            error("Method {$class}::{$env1}() does not exist.");
 
             return self::FAILURE;
         }
 
         if (! method_exists($class, $env2)) {
-            $this->error("Method {$class}::{$env2}() does not exist.");
+            error("Method {$class}::{$env2}() does not exist.");
 
             return self::FAILURE;
         }
@@ -117,7 +130,12 @@ class DiffEnvSettingsCommand extends Command
             array_map(fn ($c) => class_basename($c).' ('.$c.')', $classes),
         );
 
-        return select('Which settings class?', $labels);
+        return select(
+            label: 'Which settings class would you like to compare?',
+            options: $labels,
+            scroll: 10,
+            hint: 'Arrow keys to navigate, Enter to select.',
+        );
     }
 
     /**

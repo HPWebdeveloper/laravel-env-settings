@@ -7,6 +7,9 @@ namespace HpWebDeveloper\LaravelEnvSettings\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Filesystem\Filesystem;
 
+use function Laravel\Prompts\error;
+use function Laravel\Prompts\outro;
+
 class MakeEnvSettingsCommand extends Command
 {
     protected $signature = 'env-settings:make
@@ -23,7 +26,7 @@ class MakeEnvSettingsCommand extends Command
         $filePath = rtrim($basePath, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.$name.'.php';
 
         if ($files->exists($filePath)) {
-            $this->error("Settings class already exists: {$filePath}");
+            error("Settings class already exists: {$filePath}");
 
             return self::FAILURE;
         }
@@ -36,7 +39,7 @@ class MakeEnvSettingsCommand extends Command
         $files->ensureDirectoryExists(dirname($filePath));
         $files->put($filePath, $stub);
 
-        $this->info("Settings class created: {$filePath}");
+        outro("Settings class created: {$filePath}");
 
         return self::SUCCESS;
     }
