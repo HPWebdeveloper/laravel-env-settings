@@ -7,28 +7,51 @@ namespace HpWebDeveloper\LaravelEnvSettings\Commands;
 use HpWebDeveloper\LaravelEnvSettings\EnvironmentSettings;
 use Illuminate\Console\Command;
 use ReflectionClass;
+use ReflectionMethod;
 use ReflectionProperty;
+
+use function Laravel\Prompts\select;
 
 class DiffEnvSettingsCommand extends Command
 {
     protected $signature = 'env-settings:diff
-        {class : Fully qualified class name of the settings class}
-        {env1 : First environment method name (e.g. development)}
-        {env2 : Second environment method name (e.g. production)}';
+        {class? : Fully qualified class name of the settings class}
+        {env1? : First environment method name (e.g. development)}
+        {env2? : Second environment method name (e.g. production)}';
 
     protected $description = 'Compare settings between two environments';
 
     public function handle(): int
     {
-        $class = $this->argument('class');
-        $env1 = $this->argument('env1');
-        $env2 = $this->argument('env2');
+        $classArg = $this->argument('class');
+        $env1Arg = $this->argument('env1');
+        $env2Arg = $this->argument('env2');
 
-        if (! class_exists($class) || ! is_subclass_of($class, EnvironmentSettings::class)) {
-            $this->error("Class {$class} is not a valid EnvironmentSettings subclass.");
+        // If class looks invalid but env1/env2 were also not provided, fall back
+        // to the interactive flow rather than hard-failing.
+        if ($classArg !== null && (! class_exists($classArg) || ! is_subclass_of($classArg, EnvironmentSettings::class))) {
+            if ($env1Arg === null && $env2Arg === null) {
+                $this->warn("'{$classArg}' is not a valid EnvironmentSettings subclass — falling back to interactive selection.");
+                $classArg = null;
+            } else {
+                $this->error("Class {$classArg} is not a valid EnvironmentSettings subclass.");
 
-            return self::FAILURE;
+                return self::FAILURE;
+            }
         }
+
+        $class = $classArg ?? $this->promptForClass();
+
+        if ($class === null) {
+            $this->warn('No settings classes registered in config(\'env-settings.register\').');
+            $this->line('Usage: php artisan env-settings:diff "App\\Settings\\AuthSettings" development production');
+
+            return self::SUCCESS;
+        }
+
+        $environments = $this->detectEnvironments($class);
+        $env1 = $env1Arg ?? select('First environment', $environments);
+        $env2 = $env2Arg ?? select('Second environment', array_values(array_diff($environments, [$env1])));
 
         if (! method_exists($class, $env1)) {
             $this->error("Method {$class}::{$env1}() does not exist.");
@@ -76,6 +99,63 @@ class DiffEnvSettingsCommand extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    private function promptForClass(): ?string
+    {
+        $classes = array_values(array_filter(
+            config('env-settings.register', []),
+            fn ($c) => is_string($c) && class_exists($c) && is_subclass_of($c, EnvironmentSettings::class),
+        ));
+
+        if (empty($classes)) {
+            return null;
+        }
+
+        $labels = array_combine(
+            $classes,
+            array_map(fn ($c) => class_basename($c).' ('.$c.')', $classes),
+        );
+
+        return select('Which settings class?', $labels);
+    }
+
+    /**
+     * Return the public static environment method names defined on the class,
+     * excluding framework methods (resolve, testing, etc.).
+     *
+     * @param  class-string<EnvironmentSettings>  $class
+     * @return list<string>
+     */
+    private function detectEnvironments(string $class): array
+    {
+        $skip = ['resolve', 'staging', 'testing'];
+
+        $reflection = new ReflectionClass($class);
+        $methods = [];
+
+        foreach ($reflection->getMethods(ReflectionMethod::IS_PUBLIC | ReflectionMethod::IS_STATIC) as $method) {
+            $name = $method->getName();
+
+            if ($method->isAbstract() || in_array($name, $skip, true) || str_starts_with($name, '__')) {
+                continue;
+            }
+
+            if ($method->getDeclaringClass()->getName() === EnvironmentSettings::class) {
+                continue;
+            }
+
+            $methods[] = $name;
+        }
+
+        // Always append staging/testing if the class defines them beyond the default
+        foreach (['staging', 'testing'] as $extra) {
+            if (method_exists($class, $extra) && ! in_array($extra, $methods, true)) {
+                $methods[] = $extra;
+            }
+        }
+
+        return empty($methods) ? ['development', 'production'] : $methods;
     }
 
     private function formatValue(mixed $value): string
