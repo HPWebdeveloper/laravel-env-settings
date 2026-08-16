@@ -51,7 +51,10 @@ return [
 
     'override' => env('ENV_SETTINGS_OVERRIDE', false),
 
-    'override_path' => app_path('Settings/Overrides'),
+    // Defaults to app_path('Settings/Overrides') at runtime when null, keeping
+    // this value out of the config cache so paths are resolved correctly on
+    // every host regardless of where config:cache was executed.
+    'override_path' => null,
 
     'override_namespace' => 'App\\Settings\\Overrides',
 
@@ -70,5 +73,18 @@ return [
         // \App\Settings\AuthSettings::class,
         // \App\Settings\PaymentSettings::class,
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Default Settings Namespace
+    |--------------------------------------------------------------------------
+    |
+    | The namespace used by `env-settings:make` when --namespace is not passed.
+    | Explicit configuration avoids fragile path-to-namespace derivation that
+    | breaks with non-standard PSR-4 mappings.
+    |
+    */
+
+    'class_namespace' => 'App\\Settings',
 
 ];
