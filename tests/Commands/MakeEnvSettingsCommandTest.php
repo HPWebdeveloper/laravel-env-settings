@@ -38,7 +38,22 @@ class MakeEnvSettingsCommandTest extends TestCase
 
         $this->appDirs = [];
 
+        @unlink(config_path('env-settings.php'));
+
         parent::tearDown();
+    }
+
+    /**
+     * Write a published config whose `register` array holds the given lines.
+     */
+    private function publishConfig(string ...$registerLines): string
+    {
+        $path = config_path('env-settings.php');
+        $body = $registerLines === [] ? '' : "\n        ".implode("\n        ", $registerLines);
+
+        file_put_contents($path, "<?php\n\nreturn [\n\n    'register' => [{$body}\n    ],\n\n];\n");
+
+        return $path;
     }
 
     /**
