@@ -1,29 +1,17 @@
 # Laravel Env Settings
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/hpwebdeveloper/laravel-env-settings.svg?style=flat-square)](https://packagist.org/packages/hpwebdeveloper/laravel-env-settings)
-[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/hpwebdeveloper/laravel-env-settings/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/hpwebdeveloper/laravel-env-settings/actions?query=workflow%3Arun-tests+branch%3Amain)
+[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/HPWebdeveloper/laravel-env-setting/ci.yml?branch=main&label=tests&style=flat-square)](https://github.com/HPWebdeveloper/laravel-env-setting/actions?query=workflow%3ACI+branch%3Amain)
 [![Total Downloads](https://img.shields.io/packagist/dt/hpwebdeveloper/laravel-env-settings.svg?style=flat-square)](https://packagist.org/packages/hpwebdeveloper/laravel-env-settings)
 
 ### 50–80% of a typical enterprise .env is not secret.
 
 This package helps you keep `.env` for **secrets** and for the **stock Laravel keys**. `app/Settings/*.php` is for the **configuration your application adds on top of Laravel** — third-party integrations, AI providers, payment gateways, microservice endpoints, and every other non-secret value that varies by environment.
-https://github.com/HPWebdeveloper/laravel-env-setting-demo
 
-and `.env` should get smaller and contains only secrets. PHP classes hold the non-secret operational truth of the system.
+Your `.env` gets smaller and holds only secrets. PHP classes hold the non-secret operational truth of the system.
 
-First read this part "This package is for you if…" from the
-readme of this package:
-https://github.com/HPWebdeveloper/document-hb-pattern
-
-Then read this:
-
-- https://github.com/HPWebdeveloper/document-hb-pattern/blob/main/7-why-not-just-env.md
-
-- setting + config() + .env is what makes system more agile
-
-and add more from there to this readme.
-
-also read this /Volumes/source/projects/hbmarket/delete/document-hb-pattern/7-why-not-just-env.md to add more from it specially the reasoning.
+- [Demo application](https://github.com/HPWebdeveloper/laravel-env-setting-demo)
+- [Why not just `.env`?](https://github.com/HPWebdeveloper/document-hb-pattern/blob/main/7-why-not-just-env.md)
 
 **Environment-aware, type-safe configuration classes for Laravel.**
 
@@ -87,10 +75,12 @@ This creates `config/env-settings.php`.
 php artisan env-settings:make AuthSettings --properties="domain:string,redirect_url:string,timeout:int,mfa_enabled:bool"
 ```
 
-This creates `app/Settings/AuthSettings.php`:
+This creates `app/Settings/AuthSettings.php` with the structure in place and placeholder values for you to fill in:
 
 ```php
 <?php
+
+declare(strict_types=1);
 
 namespace App\Settings;
 
@@ -108,22 +98,46 @@ class AuthSettings extends EnvironmentSettings
     public static function development(): static
     {
         return new static(
-            domain: 'dev.auth.example.com',
-            redirect_url: 'http://localhost:8000/callback',
-            timeout: 30,
-            mfa_enabled: false,
+            domain: '', // TODO: set development value
+            redirect_url: '', // TODO: set development value
+            timeout: 0, // TODO: set development value
+            mfa_enabled: false, // TODO: set development value
         );
     }
 
     public static function production(): static
     {
         return new static(
-            domain: 'auth.example.com',
-            redirect_url: 'https://app.example.com/callback',
-            timeout: 10,
-            mfa_enabled: true,
+            domain: '', // TODO: set production value
+            redirect_url: '', // TODO: set production value
+            timeout: 0, // TODO: set production value
+            mfa_enabled: false, // TODO: set production value
         );
     }
+}
+```
+
+Fill in the values for each environment:
+
+```php
+public static function development(): static
+{
+    return new static(
+        domain: 'dev.auth.example.com',
+        redirect_url: 'http://localhost:8000/callback',
+        timeout: 30,
+        mfa_enabled: false,
+    );
+}
+
+public static function production(): static
+{
+    return new static(
+        domain: 'auth.example.com',
+        redirect_url: 'https://app.example.com/callback',
+        timeout: 10,
+        mfa_enabled: true,
+    );
 }
 ```
 
@@ -255,7 +269,7 @@ $this->app->singleton(AuthSettings::class, fn () => AuthSettings::resolve());
 'class_namespace' => 'App\\Settings',
 ```
 
-This is the fallback only — an explicit `--namespace`, or a namespace derived from `--path`, takes precedence. See [`env-settings:make`](#env-settings-make) for the full order.
+This is the fallback only — an explicit `--namespace`, or a namespace derived from `--path`, takes precedence. See [`env-settings:make`](#env-settingsmake) for the full order.
 
 ---
 
@@ -444,15 +458,14 @@ Output:
 
 ```
 [ AuthSettings ] — Environment: production
-
-+-------------+--------+-----------------------------------+
-| Property    | Type   | Value                             |
-+-------------+--------+-----------------------------------+
-| domain      | string | auth.example.com                  |
-| redirect_url| string | https://app.example.com/callback  |
-| timeout     | int    | 10                                |
-| mfa_enabled | bool   | true                              |
-+-------------+--------+-----------------------------------+
++--------------+--------+----------------------------------+
+| Property     | Type   | Value                            |
++--------------+--------+----------------------------------+
+| domain       | string | auth.example.com                 |
+| redirect_url | string | https://app.example.com/callback |
+| timeout      | int    | 10                               |
+| mfa_enabled  | bool   | true                             |
++--------------+--------+----------------------------------+
 ```
 
 Sensitive properties (containing `key`, `secret`, `password`, `token`) are automatically masked with `********`.
@@ -462,22 +475,25 @@ Sensitive properties (containing `key`, `secret`, `password`, `token`) are autom
 Compare settings between two environments:
 
 ```bash
+# Fully specified
 php artisan env-settings:diff "App\Settings\AuthSettings" development production
+
+# Omit any argument and you'll be prompted for it
+php artisan env-settings:diff
 ```
 
 Output:
 
 ```
 [ AuthSettings ] — Comparing development vs production
-
-+---------------+---------------------------+-----------------------------------+
-| Property      | development               | production                        |
-+---------------+---------------------------+-----------------------------------+
-| domain *      | dev.auth.example.com      | auth.example.com                  |
-| redirect_url *| http://localhost:8000/cb   | https://app.example.com/callback  |
-| timeout *     | 30                        | 10                                |
-| mfa_enabled * | false                     | true                              |
-+---------------+---------------------------+-----------------------------------+
++----------------+--------------------------------+----------------------------------+
+| Property       | development                    | production                       |
++----------------+--------------------------------+----------------------------------+
+| domain *       | dev.auth.example.com           | auth.example.com                 |
+| redirect_url * | http://localhost:8000/callback | https://app.example.com/callback |
+| timeout *      | 30                             | 10                               |
+| mfa_enabled *  | false                          | true                             |
++----------------+--------------------------------+----------------------------------+
 * = values differ between environments
 ```
 
@@ -521,9 +537,9 @@ class AiSettings extends EnvironmentSettings
     public static function development(): static
     {
         return new static(
-            provider: 'ollama',           // free, local
-            text_model: 'gpt-4o-mini',
-            embeddings_model: 'text-embedding-3-small',
+            provider: 'ollama',                        // free, local
+            text_model: 'llama3.1',
+            embeddings_model: 'nomic-embed-text',
             max_tokens: 2000,
             thinking_budget: 512,
         );
@@ -532,8 +548,8 @@ class AiSettings extends EnvironmentSettings
     public static function staging(): static
     {
         return new static(
-            provider: 'openai',
-            text_model: 'gpt-4o',
+            provider: 'openai',                        // cheap, hosted
+            text_model: 'gpt-4o-mini',
             embeddings_model: 'text-embedding-3-small',
             max_tokens: 4000,
             thinking_budget: 2048,
@@ -543,8 +559,8 @@ class AiSettings extends EnvironmentSettings
     public static function production(): static
     {
         return new static(
-            provider: 'openai',
-            text_model: 'gpt-5.2-turbo',  // best quality
+            provider: 'openai',                        // best quality
+            text_model: 'gpt-4o',
             embeddings_model: 'text-embedding-3-large',
             max_tokens: 8000,
             thinking_budget: 4096,
@@ -613,11 +629,11 @@ The package falls back to the `fallback_environment` config value (default: `dev
 
 ## Changelog
 
-Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed recently.
+See [Releases](https://github.com/HPWebdeveloper/laravel-env-setting/releases) for what has changed recently.
 
 ## Contributing
 
-Please see [CONTRIBUTING](CONTRIBUTING.md) for details.
+Issues and pull requests are welcome on [GitHub](https://github.com/HPWebdeveloper/laravel-env-setting).
 
 ## Security Vulnerabilities
 
@@ -629,4 +645,4 @@ Please review [our security policy](../../security/policy) on how to report secu
 
 ## License
 
-The MIT License (MIT). Please see [License File](LICENSE) for more information.
+The MIT License (MIT).
