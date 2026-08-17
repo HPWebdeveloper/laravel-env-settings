@@ -339,7 +339,7 @@ Configure the override path and namespace in `config/env-settings.php`:
 
 ```php
 'override' => env('ENV_SETTINGS_OVERRIDE', false),
-'override_path' => app_path('Settings/Overrides'),
+'override_path' => null, // resolves to app_path('Settings/Overrides') at runtime
 'override_namespace' => 'App\\Settings\\Overrides',
 ```
 
