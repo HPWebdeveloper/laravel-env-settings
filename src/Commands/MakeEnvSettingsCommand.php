@@ -185,26 +185,41 @@ class MakeEnvSettingsCommand extends Command
     /**
      * Append the new class to the `register` array in the published config.
      *
-     * Only runs when the user has published config/env-settings.php. Silently
-     * skips if the file does not exist or the class is already listed.
+     * A settings class is inert until it is listed there, so anything that
+     * stops the append from happening is reported rather than swallowed.
      */
     private function autoRegisterInConfig(string $fqcn): void
     {
         $configPath = config_path('env-settings.php');
 
         if (! file_exists($configPath)) {
+            $this->components->warn(
+                'config/env-settings.php is not published, so the class could not be registered automatically. '
+                ."Publish it with `php artisan vendor:publish --tag=env-settings-config`, then add \\{$fqcn}::class to the `register` array."
+            );
+
             return;
         }
 
         $content = file_get_contents($configPath);
 
-        if ($content === false || str_contains($content, $fqcn)) {
+        if ($content === false) {
+            $this->components->warn("Could not read {$configPath}; register \\{$fqcn}::class manually.");
+
             return;
         }
 
+        $alreadyRegistered = false;
+
         $newContent = preg_replace_callback(
             "/'register'\s*=>\s*\[([\s\S]*?)\s*\]/",
-            function (array $matches) use ($fqcn): string {
+            function (array $matches) use ($fqcn, &$alreadyRegistered): string {
+                if (in_array($fqcn, $this->registeredClasses($matches[1]), true)) {
+                    $alreadyRegistered = true;
+
+                    return $matches[0];
+                }
+
                 $inner = rtrim($matches[1]);
 
                 return "'register' => [{$inner}\n        \\{$fqcn}::class,\n    ]";
@@ -214,10 +229,49 @@ class MakeEnvSettingsCommand extends Command
             $count,
         );
 
-        if ($count === 1 && $newContent !== null) {
-            file_put_contents($configPath, $newContent);
-            $this->line("  → Registered \\{$fqcn}::class in config/env-settings.php");
+        if ($count !== 1 || $newContent === null) {
+            $this->components->warn(
+                "Could not find a `register` array in {$configPath}; add \\{$fqcn}::class to it manually."
+            );
+
+            return;
         }
+
+        if ($alreadyRegistered) {
+            $this->line("  → \\{$fqcn}::class is already registered in config/env-settings.php");
+
+            return;
+        }
+
+        file_put_contents($configPath, $newContent);
+        $this->line("  → Registered \\{$fqcn}::class in config/env-settings.php");
+    }
+
+    /**
+     * List the classes actually registered in a `register` array body.
+     *
+     * Comments are stripped first: the published config ships commented-out
+     * examples such as `// \App\Settings\AuthSettings::class,`, and treating
+     * those as real entries would silently skip registering a class of the
+     * same name.
+     *
+     * @return list<string>
+     */
+    private function registeredClasses(string $registerBody): array
+    {
+        $body = preg_replace('%/\*[\s\S]*?\*/%', '', $registerBody) ?? $registerBody;
+        $body = preg_replace('%(//|\#).*$%m', '', $body) ?? $body;
+
+        preg_match_all(
+            '/([A-Za-z_\x80-\xff\\\\][A-Za-z0-9_\x80-\xff\\\\]*)\s*::\s*class/',
+            $body,
+            $matches
+        );
+
+        return array_values(array_map(
+            static fn (string $class): string => ltrim($class, '\\'),
+            $matches[1]
+        ));
     }
 
     /**
