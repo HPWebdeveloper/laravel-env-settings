@@ -390,9 +390,31 @@ php artisan env-settings:make NotificationSettings
 # With typed properties
 php artisan env-settings:make NotificationSettings --properties="sms_provider:string,default_channel:string,rate_limit_per_minute:int,sandbox_mode:bool"
 
-# Custom path
+# Custom path — namespace follows the directory: App\Settings\Infrastructure
 php artisan env-settings:make NotificationSettings --path=app/Settings/Infrastructure
+
+# Explicit namespace, for directories outside the application root
+php artisan env-settings:make NotificationSettings \
+    --path=packages/billing/src/Settings --namespace="Acme\\Billing\\Settings"
 ```
+
+#### How the namespace is chosen
+
+A generated class only autoloads if its namespace matches where the file was written, so the namespace is resolved in this order:
+
+1. **`--namespace`**, when given — used exactly as provided.
+2. **Derived from `--path`**, when that directory sits under the application root. The root namespace is read from your application's own PSR-4 mapping, so a renamed app root maps correctly.
+3. **`config('env-settings.class_namespace')`** — the project-wide default, `App\Settings`.
+
+| Command | Namespace |
+| ------- | --------- |
+| `env-settings:make FooSettings` | `App\Settings` |
+| `--path=app/Settings/Infrastructure` | `App\Settings\Infrastructure` |
+| `--path=app/Modules/Billing/Settings` | `App\Modules\Billing\Settings` |
+| `--path=packages/billing/src` | `App\Settings` + warning |
+| `--path=packages/billing/src --namespace="Acme\Billing"` | `Acme\Billing` |
+
+> **Note**: A path outside the application root has no PSR-4 mapping this command can read, so it falls back to the configured default and warns you. Pass `--namespace` in that case — otherwise the file is written with a namespace that will not autoload.
 
 ### `env-settings:show`
 

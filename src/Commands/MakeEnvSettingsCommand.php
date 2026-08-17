@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace HpWebDeveloper\LaravelEnvSettings\Commands;
 
+use HpWebDeveloper\LaravelEnvSettings\Support\Path;
 use Illuminate\Console\Command;
 use Illuminate\Filesystem\Filesystem;
+use Throwable;
 
 use function Laravel\Prompts\error;
 use function Laravel\Prompts\outro;
@@ -16,14 +18,15 @@ class MakeEnvSettingsCommand extends Command
         {name : The name of the settings class (e.g. AuthSettings)}
         {--properties= : Comma-separated properties with types (e.g. domain:string,timeout:int,enabled:bool)}
         {--path= : Custom directory to create the file in (default: app/Settings)}
-        {--namespace= : Explicit PHP namespace for the class (default: config env-settings.class_namespace)}';
+        {--namespace= : Explicit PHP namespace for the class (default: derived from --path, else config env-settings.class_namespace)}';
 
     protected $description = 'Create a new environment settings class';
 
     public function handle(Filesystem $files): int
     {
         $name = $this->argument('name');
-        $basePath = $this->option('path') ?? app_path('Settings');
+        $path = $this->option('path');
+        $basePath = $path ?? app_path('Settings');
         $filePath = rtrim($basePath, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.$name.'.php';
 
         if ($files->exists($filePath)) {
@@ -33,7 +36,7 @@ class MakeEnvSettingsCommand extends Command
         }
 
         $properties = $this->parseProperties($this->option('properties'));
-        $namespace = $this->resolveNamespace();
+        $namespace = $this->resolveNamespace(is_string($path) ? $path : null);
 
         $stub = $this->buildStub($namespace, $name, $properties);
 
@@ -71,33 +74,112 @@ class MakeEnvSettingsCommand extends Command
         return $properties;
     }
 
-    private function deriveNamespace(string $path): string
-    {
-        $appPath = app_path();
-        $relativePath = str_starts_with($path, $appPath)
-            ? substr($path, strlen($appPath))
-            : DIRECTORY_SEPARATOR.'Settings';
-
-        $namespace = str_replace(DIRECTORY_SEPARATOR, '\\', $relativePath);
-
-        return 'App\\'.trim($namespace, '\\');
-    }
-
     /**
      * Resolve the namespace for the new settings class.
      *
      * Priority:
-     *   1. `--namespace` CLI option — fully explicit, no guessing.
-     *   2. `config('env-settings.class_namespace')` — project-wide default.
-     *   3. `App\Settings` — safe built-in fallback.
+     *   1. `--namespace` — explicit, never second-guessed.
+     *   2. Derived from `--path`, when that directory sits under the
+     *      application root. Where the file is written is what decides
+     *      whether it autoloads, so once the caller picks the directory the
+     *      namespace has to follow it or the class is unreachable.
+     *   3. `config('env-settings.class_namespace')` — project-wide default.
      *
-     * This replaces the old path-to-namespace derivation which was fragile
-     * with non-standard PSR-4 mappings.
+     * Derivation reads the root namespace from the application's own PSR-4
+     * mapping instead of assuming `App\`, so a renamed app root still maps
+     * correctly. When `--path` points outside the application root there is
+     * no mapping to read, so the default is used and the caller is warned
+     * rather than left with a class that silently fails to autoload.
      */
-    private function resolveNamespace(): string
+    private function resolveNamespace(?string $path): string
     {
-        return $this->option('namespace')
-            ?? config('env-settings.class_namespace', 'App\\Settings');
+        $explicit = $this->option('namespace');
+
+        if (is_string($explicit) && trim($explicit) !== '') {
+            return trim($explicit, '\\ ');
+        }
+
+        $default = $this->defaultNamespace();
+
+        if ($path === null) {
+            return $default;
+        }
+
+        $derived = $this->deriveNamespaceFromPath($path);
+
+        if ($derived !== null) {
+            return $derived;
+        }
+
+        $this->components->warn(
+            "Could not derive a namespace for --path={$path} because it is outside ".app_path().'. '
+            ."Falling back to {$default}; pass --namespace if that is not the PSR-4 namespace for that directory."
+        );
+
+        return $default;
+    }
+
+    private function defaultNamespace(): string
+    {
+        $configured = config('env-settings.class_namespace', 'App\\Settings');
+
+        return is_string($configured) && trim($configured) !== ''
+            ? trim($configured, '\\ ')
+            : 'App\\Settings';
+    }
+
+    /**
+     * Map a target directory onto its PSR-4 namespace.
+     *
+     * Returns null when the directory is not under the application root, or
+     * when a path segment is not a legal namespace label — in both cases the
+     * mapping cannot be known from here and guessing would emit a file that
+     * does not autoload.
+     */
+    private function deriveNamespaceFromPath(string $path): ?string
+    {
+        $target = Path::canonicalize(Path::isAbsolute($path) ? $path : base_path($path));
+        $appPath = Path::canonicalize(app_path());
+
+        if ($target === $appPath) {
+            $relative = '';
+        } elseif (str_starts_with($target, $appPath.'/')) {
+            $relative = substr($target, strlen($appPath) + 1);
+        } else {
+            return null;
+        }
+
+        $rootNamespace = $this->rootNamespace();
+
+        if ($rootNamespace === null) {
+            return null;
+        }
+
+        if ($relative === '') {
+            return $rootNamespace;
+        }
+
+        $segments = explode('/', $relative);
+
+        foreach ($segments as $segment) {
+            if (preg_match('/^[A-Za-z_\x80-\xff][A-Za-z0-9_\x80-\xff]*$/', $segment) !== 1) {
+                return null;
+            }
+        }
+
+        return $rootNamespace.'\\'.implode('\\', $segments);
+    }
+
+    /**
+     * The application's root namespace, read from its PSR-4 autoload mapping.
+     */
+    private function rootNamespace(): ?string
+    {
+        try {
+            return trim($this->laravel->getNamespace(), '\\');
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     /**

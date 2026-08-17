@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace HpWebDeveloper\LaravelEnvSettings;
 
+use HpWebDeveloper\LaravelEnvSettings\Support\Path;
 use Illuminate\Support\Facades\File;
 
 class EnvSettingsResolver
@@ -133,21 +134,8 @@ class EnvSettingsResolver
             return null;
         }
 
-        return $this->isAbsolutePath($configured)
+        return Path::isAbsolute($configured)
             ? $configured
             : app_path($configured);
-    }
-
-    /**
-     * Determine whether a path is absolute on the current platform.
-     *
-     * Covers POSIX roots (`/srv/...`), Windows drive roots (`C:\...`, `C:/...`)
-     * and UNC shares (`\\server\share`).
-     */
-    private function isAbsolutePath(string $path): bool
-    {
-        return str_starts_with($path, '/')
-            || str_starts_with($path, '\\')
-            || preg_match('/^[A-Za-z]:[\\\\\/]/', $path) === 1;
     }
 }

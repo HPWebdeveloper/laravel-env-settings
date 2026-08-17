@@ -47,6 +47,38 @@ Generated automatically by `bin/generate-test-inventory`. Edit tests to update t
 - test generated file has correct use statement
   - Assertions: assertStringContainsString
 
+- test it uses the configured namespace when no path is given
+  - Assertions: assertSame
+
+- test it derives the namespace from a path inside the app root
+  - Assertions: assertSame
+
+- test derived namespace collapses relative path segments
+  - Assertions: assertSame
+
+- test it warns and falls back when path is outside the app root
+  - Assertions: assertSame
+
+- test explicit namespace option wins over derivation
+  - Assertions: assertSame
+
+- test explicit namespace option is not warned about outside the app root
+  - Assertions: assertSame
+
+- test it registers a class whose name matches a commented out example
+  - Assertions: assertStringContainsString
+
+- test it does not duplicate a class that is already registered
+  - Assertions: assertSame
+
+- test it appends to an empty register array
+  - Assertions: assertStringContainsString
+
+- test it warns when the config has not been published
+  - Assertions: assertFileDoesNotExist
+
+- test it warns when no register array is present
+
 ## tests/Commands/ShowEnvSettingsCommandTest.php
 
 - test show displays resolved settings for a class
