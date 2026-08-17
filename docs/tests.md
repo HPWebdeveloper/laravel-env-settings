@@ -84,6 +84,21 @@ Generated automatically by `bin/generate-test-inventory`. Edit tests to update t
 - test resolve falls back when override namespace is null
   - Assertions: assertSame
 
+- test relative override path is resolved against app path
+  - Assertions: assertSame
+
+- test null override path uses the app settings overrides convention
+  - Assertions: assertSame
+
+- test empty override path uses the app settings overrides convention
+  - Assertions: assertSame
+
+- test absolute override path is used as is
+  - Assertions: assertSame
+
+- test resolve falls back when override path is not a string
+  - Assertions: assertSame
+
 ## tests/Feature/RegistrationTest.php
 
 - test auto registered class resolves for current environment
