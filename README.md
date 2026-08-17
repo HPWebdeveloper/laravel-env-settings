@@ -335,13 +335,23 @@ app/Settings/Overrides/
 
 The override class is used instead of the base class when resolving. When override is disabled or the file doesn't exist, the base class is used as normal.
 
-Configure the override path and namespace in `config/env-settings.php`:
+### Configuring the override location
 
 ```php
 'override' => env('ENV_SETTINGS_OVERRIDE', false),
-'override_path' => null, // resolves to app_path('Settings/Overrides') at runtime
+'override_path' => null,
 'override_namespace' => 'App\\Settings\\Overrides',
 ```
+
+`override_path` is resolved at runtime, once the application has booted. A relative path is resolved against `app_path()`; an absolute path is used as-is:
+
+| `override_path`          | Resolves to                        |
+| ------------------------ | ---------------------------------- |
+| `null` (default)         | `app_path('Settings/Overrides')`   |
+| `'Custom/Overrides'`     | `app_path('Custom/Overrides')`     |
+| `'/mnt/shared/overrides'`| `/mnt/shared/overrides`            |
+
+> **Note**: Prefer a relative path over calling `app_path()` in the config file. `php artisan config:cache` evaluates every config file once and writes the result to `bootstrap/cache/config.php`, so `app_path()` freezes the application's absolute path **as it was when the cache was built**. Anywhere the app runs from a different directory than the build — Docker multi-stage builds, CI-built deployment artifacts, Forge/Envoyer releases in per-deploy directories — that cached path no longer exists. Override lookup then silently finds nothing and falls back to the base class, with no error to point at the cause. A relative path carries no build-time location, so it stays correct on every host.
 
 ---
 

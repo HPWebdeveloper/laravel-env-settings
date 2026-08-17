@@ -80,10 +80,7 @@ class EnvSettingsResolver
      */
     private function resolveOverrideClass(string $class): ?string
     {
-        // override_path defaults to null in the config; fall back to app_path() at
-        // runtime so the value is resolved after the application is fully booted,
-        // keeping config:cache safe (no app_path() call at config-load time).
-        $overridePath = config('env-settings.override_path') ?? app_path('Settings/Overrides');
+        $overridePath = $this->resolveOverridePath();
 
         if (! $overridePath || ! is_dir($overridePath)) {
             return null;
@@ -109,5 +106,48 @@ class EnvSettingsResolver
         }
 
         return $overrideClass;
+    }
+
+    /**
+     * Resolve the directory that override classes are loaded from.
+     *
+     * The configured value is interpreted at runtime — after the application has
+     * booted — so no path helper is ever called at config-load time. This keeps
+     * `php artisan config:cache` portable: nothing app-relative is frozen into
+     * `bootstrap/cache/config.php`, so a cache built in CI or a Docker build
+     * stage stays correct when the app runs from a different absolute path.
+     *
+     *   null                    → app_path('Settings/Overrides')
+     *   'Custom/Overrides'      → app_path('Custom/Overrides')
+     *   '/mnt/shared/overrides' → used as-is
+     */
+    private function resolveOverridePath(): ?string
+    {
+        $configured = config('env-settings.override_path');
+
+        if ($configured === null || $configured === '') {
+            return app_path('Settings/Overrides');
+        }
+
+        if (! is_string($configured)) {
+            return null;
+        }
+
+        return $this->isAbsolutePath($configured)
+            ? $configured
+            : app_path($configured);
+    }
+
+    /**
+     * Determine whether a path is absolute on the current platform.
+     *
+     * Covers POSIX roots (`/srv/...`), Windows drive roots (`C:\...`, `C:/...`)
+     * and UNC shares (`\\server\share`).
+     */
+    private function isAbsolutePath(string $path): bool
+    {
+        return str_starts_with($path, '/')
+            || str_starts_with($path, '\\')
+            || preg_match('/^[A-Za-z]:[\\\\\/]/', $path) === 1;
     }
 }

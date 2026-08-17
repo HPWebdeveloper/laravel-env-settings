@@ -51,9 +51,14 @@ return [
 
     'override' => env('ENV_SETTINGS_OVERRIDE', false),
 
-    // Defaults to app_path('Settings/Overrides') at runtime when null, keeping
-    // this value out of the config cache so paths are resolved correctly on
-    // every host regardless of where config:cache was executed.
+    // Resolved at runtime, never at config-load time, so `config:cache` stays
+    // portable across hosts:
+    //
+    //   null                    → app_path('Settings/Overrides')
+    //   'Custom/Overrides'      → app_path('Custom/Overrides')
+    //   '/mnt/shared/overrides' → used as-is
+    //
+    // Prefer a relative path over calling app_path() here — see the README.
     'override_path' => null,
 
     'override_namespace' => 'App\\Settings\\Overrides',
