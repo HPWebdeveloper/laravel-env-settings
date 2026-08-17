@@ -251,6 +251,100 @@ class MakeEnvSettingsCommandTest extends TestCase
         $this->assertSame('Acme\\Config', $this->namespaceOf($this->outputPath.'/OutsideSettings.php'));
     }
 
+    // -------------------------------------------------------------------
+    // Auto-registration in the published config
+    // -------------------------------------------------------------------
+
+    public function test_it_registers_a_class_whose_name_matches_a_commented_out_example(): void
+    {
+        // The published config ships these examples commented out. They must
+        // not be mistaken for real entries, or the class silently never
+        // registers and stays inert.
+        $configPath = $this->publishConfig(
+            '// \App\Settings\AuthSettings::class,',
+            '// \App\Settings\PaymentSettings::class,',
+        );
+
+        $this->artisan('env-settings:make', [
+            'name' => 'AuthSettings',
+            '--path' => $this->outputPath,
+            '--namespace' => 'App\\Settings',
+        ])->assertSuccessful();
+
+        $this->assertStringContainsString(
+            '\App\Settings\AuthSettings::class,',
+            $this->uncommentedLines($configPath)
+        );
+    }
+
+    public function test_it_does_not_duplicate_a_class_that_is_already_registered(): void
+    {
+        $configPath = $this->publishConfig('\App\Settings\AuthSettings::class,');
+
+        $this->artisan('env-settings:make', [
+            'name' => 'AuthSettings',
+            '--path' => $this->outputPath,
+            '--namespace' => 'App\\Settings',
+        ])->expectsOutputToContain('already registered')
+            ->assertSuccessful();
+
+        $this->assertSame(
+            1,
+            substr_count((string) file_get_contents($configPath), 'AuthSettings::class')
+        );
+    }
+
+    public function test_it_appends_to_an_empty_register_array(): void
+    {
+        $configPath = $this->publishConfig();
+
+        $this->artisan('env-settings:make', [
+            'name' => 'ReportingSettings',
+            '--path' => $this->outputPath,
+            '--namespace' => 'App\\Settings',
+        ])->expectsOutputToContain('Registered')
+            ->assertSuccessful();
+
+        $this->assertStringContainsString(
+            '\App\Settings\ReportingSettings::class,',
+            $this->uncommentedLines($configPath)
+        );
+    }
+
+    public function test_it_warns_when_the_config_has_not_been_published(): void
+    {
+        $this->assertFileDoesNotExist(config_path('env-settings.php'));
+
+        $this->artisan('env-settings:make', [
+            'name' => 'UnpublishedSettings',
+            '--path' => $this->outputPath,
+        ])->expectsOutputToContain('not published')
+            ->assertSuccessful();
+    }
+
+    public function test_it_warns_when_no_register_array_is_present(): void
+    {
+        file_put_contents(config_path('env-settings.php'), "<?php\n\nreturn [\n    'override' => false,\n];\n");
+
+        $this->artisan('env-settings:make', [
+            'name' => 'OrphanSettings',
+            '--path' => $this->outputPath,
+        ])->expectsOutputToContain('Could not find a `register` array')
+            ->assertSuccessful();
+    }
+
+    /**
+     * The config file with every comment removed, so assertions cannot be
+     * satisfied by a commented-out line.
+     */
+    private function uncommentedLines(string $configPath): string
+    {
+        $content = (string) file_get_contents($configPath);
+        $content = (string) preg_replace('%/\*[\s\S]*?\*/%', '', $content);
+
+        return (string) preg_replace('%(//|\#).*$%m', '', $content);
+    }
+
     private function namespaceOf(string $file): string
     {
         $this->assertFileExists($file);
