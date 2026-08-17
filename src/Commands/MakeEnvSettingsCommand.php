@@ -209,27 +209,9 @@ class MakeEnvSettingsCommand extends Command
             return;
         }
 
-        $alreadyRegistered = false;
+        $located = $this->locateRegisterBody($content);
 
-        $newContent = preg_replace_callback(
-            "/'register'\s*=>\s*\[([\s\S]*?)\s*\]/",
-            function (array $matches) use ($fqcn, &$alreadyRegistered): string {
-                if (in_array($fqcn, $this->registeredClasses($matches[1]), true)) {
-                    $alreadyRegistered = true;
-
-                    return $matches[0];
-                }
-
-                $inner = rtrim($matches[1]);
-
-                return "'register' => [{$inner}\n        \\{$fqcn}::class,\n    ]";
-            },
-            $content,
-            1,
-            $count,
-        );
-
-        if ($count !== 1 || $newContent === null) {
+        if ($located === null) {
             $this->components->warn(
                 "Could not find a `register` array in {$configPath}; add \\{$fqcn}::class to it manually."
             );
@@ -237,14 +219,124 @@ class MakeEnvSettingsCommand extends Command
             return;
         }
 
-        if ($alreadyRegistered) {
+        [$start, $length] = $located;
+        $body = substr($content, $start, $length);
+
+        if (in_array($fqcn, $this->registeredClasses($body), true)) {
             $this->line("  → \\{$fqcn}::class is already registered in config/env-settings.php");
 
             return;
         }
 
-        file_put_contents($configPath, $newContent);
+        $newBody = rtrim($body)."\n        \\{$fqcn}::class,\n    ";
+
+        file_put_contents($configPath, substr_replace($content, $newBody, $start, $length));
         $this->line("  → Registered \\{$fqcn}::class in config/env-settings.php");
+    }
+
+    /**
+     * Locate the body of the `register` array within the config source.
+     *
+     * @return array{0: int, 1: int}|null offset and length of the text
+     *                                    between the array's brackets
+     */
+    private function locateRegisterBody(string $content): ?array
+    {
+        if (preg_match("/'register'\s*=>\s*\[/", $content, $matches, PREG_OFFSET_CAPTURE) !== 1) {
+            return null;
+        }
+
+        $start = $matches[0][1] + strlen($matches[0][0]);
+        $end = $this->findClosingBracket($content, $start);
+
+        return $end === null ? null : [$start, $end - $start];
+    }
+
+    /**
+     * Find the `]` that closes an array whose body starts at $offset.
+     *
+     * Comments and quoted strings are skipped over, so a bracket inside
+     * either cannot be mistaken for the end of the array — matching on the
+     * first `]` would truncate the body and write back a corrupted file.
+     */
+    private function findClosingBracket(string $content, int $offset): ?int
+    {
+        $length = strlen($content);
+        $depth = 0;
+        $i = $offset;
+
+        while ($i < $length) {
+            $char = $content[$i];
+            $next = $content[$i + 1] ?? '';
+
+            if ($char === '#' || ($char === '/' && $next === '/')) {
+                $lineEnd = strpos($content, "\n", $i);
+                $i = $lineEnd === false ? $length : $lineEnd + 1;
+
+                continue;
+            }
+
+            if ($char === '/' && $next === '*') {
+                $close = strpos($content, '*/', $i + 2);
+
+                if ($close === false) {
+                    return null;
+                }
+
+                $i = $close + 2;
+
+                continue;
+            }
+
+            if ($char === "'" || $char === '"') {
+                $close = $this->findStringEnd($content, $i);
+
+                if ($close === null) {
+                    return null;
+                }
+
+                $i = $close + 1;
+
+                continue;
+            }
+
+            if ($char === '[') {
+                $depth++;
+            } elseif ($char === ']') {
+                if ($depth === 0) {
+                    return $i;
+                }
+
+                $depth--;
+            }
+
+            $i++;
+        }
+
+        return null;
+    }
+
+    /**
+     * Find the closing quote of the string literal starting at $offset.
+     */
+    private function findStringEnd(string $content, int $offset): ?int
+    {
+        $quote = $content[$offset];
+        $length = strlen($content);
+
+        for ($i = $offset + 1; $i < $length; $i++) {
+            if ($content[$i] === '\\') {
+                $i++;
+
+                continue;
+            }
+
+            if ($content[$i] === $quote) {
+                return $i;
+            }
+        }
+
+        return null;
     }
 
     /**

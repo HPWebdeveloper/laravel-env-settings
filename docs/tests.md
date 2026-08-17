@@ -79,6 +79,15 @@ Generated automatically by `bin/generate-test-inventory`. Edit tests to update t
 
 - test it warns when no register array is present
 
+- test it does not corrupt a config whose register array contains a bracket
+  - Assertions: assertSame
+
+- test it finds existing entries beyond a bracket in a comment
+  - Assertions: assertSame
+
+- test it does not corrupt a config with a block comment in the register array
+  - Assertions: assertSame
+
 ## tests/Commands/ShowEnvSettingsCommandTest.php
 
 - test show displays resolved settings for a class

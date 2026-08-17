@@ -333,6 +333,85 @@ class MakeEnvSettingsCommandTest extends TestCase
             ->assertSuccessful();
     }
 
+    public function test_it_does_not_corrupt_a_config_whose_register_array_contains_a_bracket(): void
+    {
+        // A `]` inside a comment or string must not be mistaken for the end
+        // of the array — truncating there writes back unparseable PHP.
+        $configPath = $this->publishConfig(
+            '// use [] to disable every setting',
+            '\App\Settings\ExistingSettings::class,',
+            "// see docs['register'] for details",
+        );
+
+        $this->artisan('env-settings:make', [
+            'name' => 'AddedSettings',
+            '--path' => $this->outputPath,
+            '--namespace' => 'App\\Settings',
+        ])->assertSuccessful();
+
+        $register = $this->requireConfig($configPath)['register'];
+
+        $this->assertSame(
+            ['App\\Settings\\ExistingSettings', 'App\\Settings\\AddedSettings'],
+            $register
+        );
+    }
+
+    public function test_it_finds_existing_entries_beyond_a_bracket_in_a_comment(): void
+    {
+        // The entry sits after the bracket, so a truncating parser would miss
+        // it and append a duplicate.
+        $configPath = $this->publishConfig(
+            '// arrays look like []',
+            '\App\Settings\AuthSettings::class,',
+        );
+
+        $this->artisan('env-settings:make', [
+            'name' => 'AuthSettings',
+            '--path' => $this->outputPath,
+            '--namespace' => 'App\\Settings',
+        ])->expectsOutputToContain('already registered')
+            ->assertSuccessful();
+
+        $this->assertSame(['App\\Settings\\AuthSettings'], $this->requireConfig($configPath)['register']);
+    }
+
+    public function test_it_does_not_corrupt_a_config_with_a_block_comment_in_the_register_array(): void
+    {
+        $configPath = $this->publishConfig(
+            '/* disabled: \App\Settings\OldSettings::class, [x] */',
+            '\App\Settings\KeptSettings::class,',
+        );
+
+        $this->artisan('env-settings:make', [
+            'name' => 'NewSettings',
+            '--path' => $this->outputPath,
+            '--namespace' => 'App\\Settings',
+        ])->assertSuccessful();
+
+        $this->assertSame(
+            ['App\\Settings\\KeptSettings', 'App\\Settings\\NewSettings'],
+            $this->requireConfig($configPath)['register']
+        );
+    }
+
+    /**
+     * Load the written config back as PHP.
+     *
+     * Copied to a uniquely named file so each call really re-parses it; a
+     * corrupted config surfaces here as a ParseError rather than passing a
+     * string assertion.
+     *
+     * @return array<string, mixed>
+     */
+    private function requireConfig(string $configPath): array
+    {
+        $copy = $this->outputPath.'/loaded-config-'.uniqid().'.php';
+        copy($configPath, $copy);
+
+        return require $copy;
+    }
+
     /**
      * The config file with every comment removed, so assertions cannot be
      * satisfied by a commented-out line.
