@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace HpWebDeveloper\LaravelEnvSettings\Commands;
 
+use HpWebDeveloper\LaravelEnvSettings\Commands\Concerns\InteractsWithConsoleInput;
 use HpWebDeveloper\LaravelEnvSettings\EnvironmentSettings;
 use Illuminate\Console\Command;
 use ReflectionClass;
@@ -17,6 +18,8 @@ use function Laravel\Prompts\warning;
 
 class DiffEnvSettingsCommand extends Command
 {
+    use InteractsWithConsoleInput;
+
     protected $signature = 'env-settings:diff
         {class? : Fully qualified class name of the settings class}
         {env1? : First environment method name (e.g. development)}
@@ -26,16 +29,17 @@ class DiffEnvSettingsCommand extends Command
 
     public function handle(): int
     {
-        $classArg = $this->argument('class');
-        $env1Arg = $this->argument('env1');
-        $env2Arg = $this->argument('env2');
+        $classArg = $this->stringArgument('class');
+        $env1Arg = $this->stringArgument('env1');
+        $env2Arg = $this->stringArgument('env2');
+
+        $settingsClass = $classArg === null ? null : $this->toSettingsClass($classArg);
 
         // If class looks invalid but env1/env2 were also not provided, fall back
         // to the interactive flow rather than hard-failing.
-        if ($classArg !== null && (! class_exists($classArg) || ! is_subclass_of($classArg, EnvironmentSettings::class))) {
+        if ($classArg !== null && $settingsClass === null) {
             if ($env1Arg === null && $env2Arg === null) {
                 warning("'{$classArg}' is not a valid EnvironmentSettings subclass — falling back to interactive selection.");
-                $classArg = null;
             } else {
                 error("Class {$classArg} is not a valid EnvironmentSettings subclass.");
 
@@ -43,7 +47,7 @@ class DiffEnvSettingsCommand extends Command
             }
         }
 
-        $class = $classArg ?? $this->promptForClass();
+        $class = $settingsClass ?? $this->promptForClass();
 
         if ($class === null) {
             warning('No settings classes registered in config(\'env-settings.register\').');
@@ -53,17 +57,15 @@ class DiffEnvSettingsCommand extends Command
         }
 
         $environments = $this->detectEnvironments($class);
-        $env1 = $env1Arg ?? select(
-            label: 'First environment',
-            options: $environments,
-            hint: 'Select the base environment for the comparison.',
-            scroll: 10,
+        $env1 = $env1Arg ?? $this->selectFrom(
+            'First environment',
+            $environments,
+            'Select the base environment for the comparison.',
         );
-        $env2 = $env2Arg ?? select(
-            label: 'Second environment',
-            options: array_values(array_diff($environments, [$env1])),
-            hint: 'Select the environment to compare against.',
-            scroll: 10,
+        $env2 = $env2Arg ?? $this->selectFrom(
+            'Second environment',
+            array_values(array_diff($environments, [$env1])),
+            'Select the environment to compare against.',
         );
 
         if (! method_exists($class, $env1)) {
@@ -114,28 +116,83 @@ class DiffEnvSettingsCommand extends Command
         return self::SUCCESS;
     }
 
+    /**
+     * Narrow an arbitrary string to a settings class name.
+     *
+     * @return class-string<EnvironmentSettings>|null
+     */
+    private function toSettingsClass(string $class): ?string
+    {
+        return class_exists($class) && is_subclass_of($class, EnvironmentSettings::class)
+            ? $class
+            : null;
+    }
+
+    /**
+     * @return class-string<EnvironmentSettings>|null
+     */
     private function promptForClass(): ?string
     {
-        $classes = array_values(array_filter(
-            config('env-settings.register', []),
-            fn ($c) => is_string($c) && class_exists($c) && is_subclass_of($c, EnvironmentSettings::class),
-        ));
+        $registered = config('env-settings.register', []);
 
-        if (empty($classes)) {
+        if (! is_array($registered)) {
             return null;
         }
 
-        $labels = array_combine(
-            $classes,
-            array_map(fn ($c) => class_basename($c).' ('.$c.')', $classes),
-        );
+        $classes = [];
 
-        return select(
+        foreach ($registered as $candidate) {
+            if (! is_string($candidate)) {
+                continue;
+            }
+
+            $settingsClass = $this->toSettingsClass($candidate);
+
+            if ($settingsClass !== null) {
+                $classes[] = $settingsClass;
+            }
+        }
+
+        if ($classes === []) {
+            return null;
+        }
+
+        $labels = [];
+
+        foreach ($classes as $settingsClass) {
+            $labels[$settingsClass] = class_basename($settingsClass).' ('.$settingsClass.')';
+        }
+
+        $selected = select(
             label: 'Which settings class would you like to compare?',
             options: $labels,
             scroll: 10,
             hint: 'Arrow keys to navigate, Enter to select.',
         );
+
+        // `select()` returns the option key, which here is the class name.
+        // Numeric-looking keys come back as int, so map through the list.
+        return is_string($selected) ? $this->toSettingsClass($selected) : ($classes[$selected] ?? null);
+    }
+
+    /**
+     * Prompt for one of a list of values.
+     *
+     * `select()` is declared as returning `int|string` because it yields the
+     * option key; for a list that key is the position, so resolve it back to
+     * the value rather than leaving the union to leak into callers.
+     *
+     * @param  list<string>  $options
+     */
+    private function selectFrom(string $label, array $options, string $hint): string
+    {
+        $selected = select(label: $label, options: $options, hint: $hint, scroll: 10);
+
+        if (is_string($selected)) {
+            return $selected;
+        }
+
+        return $options[$selected] ?? '';
     }
 
     /**

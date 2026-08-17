@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace HpWebDeveloper\LaravelEnvSettings\Commands;
 
+use HpWebDeveloper\LaravelEnvSettings\Commands\Concerns\InteractsWithConsoleInput;
 use HpWebDeveloper\LaravelEnvSettings\EnvironmentSettings;
 use Illuminate\Console\Command;
 use ReflectionClass;
@@ -13,6 +14,8 @@ use function Laravel\Prompts\note;
 
 class ShowEnvSettingsCommand extends Command
 {
+    use InteractsWithConsoleInput;
+
     protected $signature = 'env-settings:show
         {class? : Fully qualified class name of a specific settings class}';
 
@@ -20,9 +23,9 @@ class ShowEnvSettingsCommand extends Command
 
     public function handle(): int
     {
-        $class = $this->argument('class');
+        $class = $this->stringArgument('class');
 
-        if ($class) {
+        if ($class !== null && $class !== '') {
             return $this->showSingle($class);
         }
 

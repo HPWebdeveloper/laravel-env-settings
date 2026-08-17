@@ -28,15 +28,17 @@ class EnvSettingsResolver
      */
     public function resolve(string $class): EnvironmentSettings
     {
+        $target = $class;
+
         if ($this->shouldUseOverride()) {
             $overrideClass = $this->resolveOverrideClass($class);
 
             if ($overrideClass !== null) {
-                return $this->resolve($overrideClass);
+                $target = $overrideClass;
             }
         }
 
-        return $this->resolveForEnvironment($class);
+        return $this->resolveForEnvironment($target);
     }
 
     /**
@@ -76,8 +78,13 @@ class EnvSettingsResolver
      * Requires explicit `override_path` and `override_namespace` configuration —
      * no filesystem scanning or namespace derivation from reflection.
      *
-     * @param  class-string<EnvironmentSettings>  $class
-     * @return class-string<EnvironmentSettings>|null
+     * The result is checked to be a subclass of the class being resolved, so
+     * it stands in for it everywhere the original would have been used.
+     *
+     * @template T of EnvironmentSettings
+     *
+     * @param  class-string<T>  $class
+     * @return class-string<T>|null
      */
     private function resolveOverrideClass(string $class): ?string
     {

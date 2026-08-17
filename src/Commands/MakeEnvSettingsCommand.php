@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace HpWebDeveloper\LaravelEnvSettings\Commands;
 
+use HpWebDeveloper\LaravelEnvSettings\Commands\Concerns\InteractsWithConsoleInput;
 use HpWebDeveloper\LaravelEnvSettings\Support\Path;
 use Illuminate\Console\Command;
 use Illuminate\Filesystem\Filesystem;
+use RuntimeException;
 use Throwable;
 
 use function Laravel\Prompts\error;
@@ -14,6 +16,8 @@ use function Laravel\Prompts\outro;
 
 class MakeEnvSettingsCommand extends Command
 {
+    use InteractsWithConsoleInput;
+
     protected $signature = 'env-settings:make
         {name : The name of the settings class (e.g. AuthSettings)}
         {--properties= : Comma-separated properties with types (e.g. domain:string,timeout:int,enabled:bool)}
@@ -24,8 +28,8 @@ class MakeEnvSettingsCommand extends Command
 
     public function handle(Filesystem $files): int
     {
-        $name = $this->argument('name');
-        $path = $this->option('path');
+        $name = $this->requiredStringArgument('name');
+        $path = $this->stringOption('path');
         $basePath = $path ?? app_path('Settings');
         $filePath = rtrim($basePath, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.$name.'.php';
 
@@ -35,8 +39,8 @@ class MakeEnvSettingsCommand extends Command
             return self::FAILURE;
         }
 
-        $properties = $this->parseProperties($this->option('properties'));
-        $namespace = $this->resolveNamespace(is_string($path) ? $path : null);
+        $properties = $this->parseProperties($this->stringOption('properties'));
+        $namespace = $this->resolveNamespace($path);
 
         if ($namespace === null) {
             return self::FAILURE;
@@ -101,9 +105,9 @@ class MakeEnvSettingsCommand extends Command
      */
     private function resolveNamespace(?string $path): ?string
     {
-        $explicit = $this->option('namespace');
+        $explicit = $this->stringOption('namespace');
 
-        if (is_string($explicit) && trim($explicit) !== '') {
+        if ($explicit !== null && trim($explicit) !== '') {
             $explicit = trim($explicit, '\\ ');
 
             if (! $this->isValidNamespace($explicit)) {
@@ -404,7 +408,12 @@ class MakeEnvSettingsCommand extends Command
      */
     private function buildStub(string $namespace, string $class, array $properties): string
     {
-        $stub = file_get_contents(__DIR__.'/../../stubs/env-settings.stub');
+        $stubPath = __DIR__.'/../../stubs/env-settings.stub';
+        $stub = file_get_contents($stubPath);
+
+        if ($stub === false) {
+            throw new RuntimeException("Unable to read the settings stub at {$stubPath}.");
+        }
 
         $propsLines = [];
         $devValues = [];
