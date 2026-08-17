@@ -129,13 +129,15 @@ class AuthSettings extends EnvironmentSettings
 
 ### 2. Register it
 
-Add your class to `config/env-settings.php`:
+A settings class stays inert until it is listed in `config/env-settings.php`:
 
 ```php
 'register' => [
     \App\Settings\AuthSettings::class,
 ],
 ```
+
+`env-settings:make` appends this line for you when the config has been published. If it can't — the config isn't published yet, or it has no `register` array — it says so and tells you what to add, so a class is never left silently unregistered.
 
 ### 3. Use it anywhere
 
