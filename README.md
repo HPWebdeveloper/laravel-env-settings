@@ -247,6 +247,16 @@ You can also register manually in a service provider:
 $this->app->singleton(AuthSettings::class, fn () => AuthSettings::resolve());
 ```
 
+### Where generated classes live
+
+`env-settings:make` writes to `app/Settings` under the `App\Settings` namespace by default. Change the default namespace with:
+
+```php
+'class_namespace' => 'App\\Settings',
+```
+
+This is the fallback only — an explicit `--namespace`, or a namespace derived from `--path`, takes precedence. See [`env-settings:make`](#env-settings-make) for the full order.
+
 ---
 
 ## Root Settings with Nested Sub-Settings

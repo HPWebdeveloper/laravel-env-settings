@@ -251,6 +251,31 @@ class MakeEnvSettingsCommandTest extends TestCase
         $this->assertSame('Acme\\Config', $this->namespaceOf($this->outputPath.'/OutsideSettings.php'));
     }
 
+    public function test_it_fails_on_an_invalid_explicit_namespace(): void
+    {
+        $this->artisan('env-settings:make', [
+            'name' => 'BadSettings',
+            '--path' => $this->outputPath,
+            '--namespace' => '123-Not Valid',
+        ])->expectsOutputToContain('Not a valid PHP namespace')
+            ->assertFailed();
+
+        // Nothing is written: an invalid namespace would not even parse.
+        $this->assertFileDoesNotExist($this->outputPath.'/BadSettings.php');
+    }
+
+    public function test_it_ignores_an_invalid_configured_namespace(): void
+    {
+        config()->set('env-settings.class_namespace', '123 Nope');
+
+        $this->artisan('env-settings:make', [
+            'name' => 'FallbackSettings',
+            '--path' => $this->outputPath,
+        ])->assertSuccessful();
+
+        $this->assertSame('App\\Settings', $this->namespaceOf($this->outputPath.'/FallbackSettings.php'));
+    }
+
     // -------------------------------------------------------------------
     // Auto-registration in the published config
     // -------------------------------------------------------------------

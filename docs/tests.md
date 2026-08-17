@@ -65,6 +65,12 @@ Generated automatically by `bin/generate-test-inventory`. Edit tests to update t
 - test explicit namespace option is not warned about outside the app root
   - Assertions: assertSame
 
+- test it fails on an invalid explicit namespace
+  - Assertions: assertFileDoesNotExist
+
+- test it ignores an invalid configured namespace
+  - Assertions: assertSame
+
 - test it registers a class whose name matches a commented out example
   - Assertions: assertStringContainsString
 

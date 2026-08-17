@@ -38,6 +38,10 @@ class MakeEnvSettingsCommand extends Command
         $properties = $this->parseProperties($this->option('properties'));
         $namespace = $this->resolveNamespace(is_string($path) ? $path : null);
 
+        if ($namespace === null) {
+            return self::FAILURE;
+        }
+
         $stub = $this->buildStub($namespace, $name, $properties);
 
         $files->ensureDirectoryExists(dirname($filePath));
@@ -90,13 +94,25 @@ class MakeEnvSettingsCommand extends Command
      * correctly. When `--path` points outside the application root there is
      * no mapping to read, so the default is used and the caller is warned
      * rather than left with a class that silently fails to autoload.
+     *
+     * Returns null when `--namespace` is not a legal PHP namespace, which
+     * the caller treats as a failure — writing the file anyway would leave
+     * an unparseable class on disk.
      */
-    private function resolveNamespace(?string $path): string
+    private function resolveNamespace(?string $path): ?string
     {
         $explicit = $this->option('namespace');
 
         if (is_string($explicit) && trim($explicit) !== '') {
-            return trim($explicit, '\\ ');
+            $explicit = trim($explicit, '\\ ');
+
+            if (! $this->isValidNamespace($explicit)) {
+                error("Not a valid PHP namespace: {$explicit}");
+
+                return null;
+            }
+
+            return $explicit;
         }
 
         $default = $this->defaultNamespace();
@@ -123,9 +139,32 @@ class MakeEnvSettingsCommand extends Command
     {
         $configured = config('env-settings.class_namespace', 'App\\Settings');
 
-        return is_string($configured) && trim($configured) !== ''
-            ? trim($configured, '\\ ')
-            : 'App\\Settings';
+        if (! is_string($configured) || ! $this->isValidNamespace(trim($configured, '\\ '))) {
+            return 'App\\Settings';
+        }
+
+        return trim($configured, '\\ ');
+    }
+
+    /**
+     * Determine whether a string is a legal PHP namespace.
+     *
+     * Guards every namespace before it reaches the stub — emitting an
+     * invalid one produces a file that cannot be parsed at all.
+     */
+    private function isValidNamespace(string $namespace): bool
+    {
+        if ($namespace === '') {
+            return false;
+        }
+
+        foreach (explode('\\', $namespace) as $segment) {
+            if (preg_match('/^[A-Za-z_\x80-\xff][A-Za-z0-9_\x80-\xff]*$/', $segment) !== 1) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -159,15 +198,9 @@ class MakeEnvSettingsCommand extends Command
             return $rootNamespace;
         }
 
-        $segments = explode('/', $relative);
+        $derived = $rootNamespace.'\\'.str_replace('/', '\\', $relative);
 
-        foreach ($segments as $segment) {
-            if (preg_match('/^[A-Za-z_\x80-\xff][A-Za-z0-9_\x80-\xff]*$/', $segment) !== 1) {
-                return null;
-            }
-        }
-
-        return $rootNamespace.'\\'.implode('\\', $segments);
+        return $this->isValidNamespace($derived) ? $derived : null;
     }
 
     /**
