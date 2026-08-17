@@ -2,6 +2,24 @@
 
 Generated automatically by `bin/generate-test-inventory`. Edit tests to update this list.
 
+## tests/Commands/DiffEnvSettingsCommandInteractiveTest.php
+
+- test it prompts for the class when none is given
+
+- test it maps a later choice back to the right class
+
+- test it prompts for both environments when only a class is given
+
+- test the second environment prompt excludes the first choice
+
+- test an invalid class argument falls back to the prompt
+
+- test it reports when nothing is registered to choose from
+
+- test it reports when the register config is not an array
+
+- test registered entries that are not settings classes are skipped
+
 ## tests/Commands/DiffEnvSettingsCommandTest.php
 
 - test diff shows differences between environments
