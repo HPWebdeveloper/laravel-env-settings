@@ -6,7 +6,7 @@ namespace HpWebDeveloper\LaravelEnvSettings\Tests\Fixtures;
 
 use HpWebDeveloper\LaravelEnvSettings\EnvironmentSettings;
 
-class FakeAppSettings extends EnvironmentSettings
+final class FakeAppSettings extends EnvironmentSettings
 {
     public function __construct(
         public FakeAuthSettings $auth,
@@ -15,7 +15,7 @@ class FakeAppSettings extends EnvironmentSettings
 
     public static function development(): static
     {
-        return new static(
+        return new self(
             auth: FakeAuthSettings::development(),
             payment: FakePaymentSettings::development(),
         );

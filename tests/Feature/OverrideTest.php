@@ -136,7 +136,7 @@ class OverrideTest extends TestCase
     {
         // app_path() now points at tests/Fixtures, so the relative value
         // 'Overrides' must resolve to tests/Fixtures/Overrides.
-        $this->app->useAppPath((string) realpath(__DIR__.'/../Fixtures'));
+        $this->application()->useAppPath((string) realpath(__DIR__.'/../Fixtures'));
 
         app()->detectEnvironment(fn () => 'local');
         config()->set('env-settings.override', true);
@@ -153,7 +153,7 @@ class OverrideTest extends TestCase
         // A null override_path must resolve to app_path('Settings/Overrides')
         // at runtime rather than being read from the config cache.
         $appPath = $this->makeTempAppPath('Settings/Overrides', 'FakeAuthSettings.php');
-        $this->app->useAppPath($appPath);
+        $this->application()->useAppPath($appPath);
 
         app()->detectEnvironment(fn () => 'local');
         config()->set('env-settings.override', true);
@@ -168,7 +168,7 @@ class OverrideTest extends TestCase
     public function test_empty_override_path_uses_the_app_settings_overrides_convention(): void
     {
         $appPath = $this->makeTempAppPath('Settings/Overrides', 'FakeAuthSettings.php');
-        $this->app->useAppPath($appPath);
+        $this->application()->useAppPath($appPath);
 
         app()->detectEnvironment(fn () => 'local');
         config()->set('env-settings.override', true);
@@ -184,7 +184,7 @@ class OverrideTest extends TestCase
     {
         // app_path() points somewhere with no overrides at all; the absolute
         // path must win rather than being appended to it.
-        $this->app->useAppPath($this->makeTempAppPath());
+        $this->application()->useAppPath($this->makeTempAppPath());
 
         app()->detectEnvironment(fn () => 'local');
         config()->set('env-settings.override', true);

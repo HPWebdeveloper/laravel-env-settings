@@ -33,7 +33,7 @@ class ShowEnvSettingsCommandTest extends TestCase
             FakeAuthSettings::class,
             FakePaymentSettings::class,
         ]);
-        $this->app->register(EnvSettingsServiceProvider::class, true);
+        $this->application()->register(EnvSettingsServiceProvider::class, true);
 
         $exitCode = Artisan::call('env-settings:show');
         $output = Artisan::output();

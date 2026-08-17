@@ -29,7 +29,7 @@ class DiffEnvSettingsCommandInteractiveTest extends TestCase
             FakePaymentSettings::class,
         ]);
 
-        $this->artisan('env-settings:diff')
+        $this->artisanCommand('env-settings:diff')
             ->expectsChoice(self::CLASS_PROMPT, FakeAuthSettings::class, [
                 FakeAuthSettings::class => 'FakeAuthSettings ('.FakeAuthSettings::class.')',
                 FakePaymentSettings::class => 'FakePaymentSettings ('.FakePaymentSettings::class.')',
@@ -49,7 +49,7 @@ class DiffEnvSettingsCommandInteractiveTest extends TestCase
             FakePaymentSettings::class,
         ]);
 
-        $this->artisan('env-settings:diff')
+        $this->artisanCommand('env-settings:diff')
             ->expectsChoice(self::CLASS_PROMPT, FakePaymentSettings::class, [
                 FakeAuthSettings::class => 'FakeAuthSettings ('.FakeAuthSettings::class.')',
                 FakePaymentSettings::class => 'FakePaymentSettings ('.FakePaymentSettings::class.')',
@@ -62,7 +62,7 @@ class DiffEnvSettingsCommandInteractiveTest extends TestCase
 
     public function test_it_prompts_for_both_environments_when_only_a_class_is_given(): void
     {
-        $this->artisan('env-settings:diff', ['class' => FakeAuthSettings::class])
+        $this->artisanCommand('env-settings:diff', ['class' => FakeAuthSettings::class])
             ->expectsChoice('First environment', 'development', ['development', 'production', 'staging', 'testing'])
             ->expectsChoice('Second environment', 'production', ['production', 'staging', 'testing'])
             ->expectsOutputToContain('Comparing development vs production')
@@ -73,7 +73,7 @@ class DiffEnvSettingsCommandInteractiveTest extends TestCase
     {
         // `array_diff` removes the first selection, so `production` is absent
         // from the second list once it has been chosen.
-        $this->artisan('env-settings:diff', ['class' => FakeAuthSettings::class])
+        $this->artisanCommand('env-settings:diff', ['class' => FakeAuthSettings::class])
             ->expectsChoice('First environment', 'production', ['development', 'production', 'staging', 'testing'])
             ->expectsChoice('Second environment', 'staging', ['development', 'staging', 'testing'])
             ->expectsOutputToContain('Comparing production vs staging')
@@ -84,7 +84,7 @@ class DiffEnvSettingsCommandInteractiveTest extends TestCase
     {
         config()->set('env-settings.register', [FakeAuthSettings::class]);
 
-        $this->artisan('env-settings:diff', ['class' => 'Totally\\Missing\\Settings'])
+        $this->artisanCommand('env-settings:diff', ['class' => 'Totally\\Missing\\Settings'])
             ->expectsOutputToContain('falling back to interactive selection')
             ->expectsChoice(self::CLASS_PROMPT, FakeAuthSettings::class, [
                 FakeAuthSettings::class => 'FakeAuthSettings ('.FakeAuthSettings::class.')',
@@ -98,7 +98,7 @@ class DiffEnvSettingsCommandInteractiveTest extends TestCase
     {
         config()->set('env-settings.register', []);
 
-        $this->artisan('env-settings:diff')
+        $this->artisanCommand('env-settings:diff')
             ->expectsOutputToContain('No settings classes registered')
             ->assertSuccessful();
     }
@@ -108,7 +108,7 @@ class DiffEnvSettingsCommandInteractiveTest extends TestCase
         // A scalar here used to reach `array_filter()` and raise a TypeError.
         config()->set('env-settings.register', 'not-an-array');
 
-        $this->artisan('env-settings:diff')
+        $this->artisanCommand('env-settings:diff')
             ->expectsOutputToContain('No settings classes registered')
             ->assertSuccessful();
     }
@@ -121,7 +121,7 @@ class DiffEnvSettingsCommandInteractiveTest extends TestCase
             FakeAuthSettings::class,
         ]);
 
-        $this->artisan('env-settings:diff')
+        $this->artisanCommand('env-settings:diff')
             ->expectsChoice(self::CLASS_PROMPT, FakeAuthSettings::class, [
                 FakeAuthSettings::class => 'FakeAuthSettings ('.FakeAuthSettings::class.')',
             ])

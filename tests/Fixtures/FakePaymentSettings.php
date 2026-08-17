@@ -6,7 +6,7 @@ namespace HpWebDeveloper\LaravelEnvSettings\Tests\Fixtures;
 
 use HpWebDeveloper\LaravelEnvSettings\EnvironmentSettings;
 
-class FakePaymentSettings extends EnvironmentSettings
+final class FakePaymentSettings extends EnvironmentSettings
 {
     public function __construct(
         public string $mode,
@@ -16,7 +16,7 @@ class FakePaymentSettings extends EnvironmentSettings
 
     public static function development(): static
     {
-        return new static(
+        return new self(
             mode: 'test',
             currency: 'EUR',
             retry_attempts: 1,

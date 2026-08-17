@@ -20,7 +20,7 @@ class RegistrationTest extends TestCase
     {
         app()->detectEnvironment(fn () => 'production');
         config()->set('env-settings.register', [FakeAuthSettings::class]);
-        $this->app->register(EnvSettingsServiceProvider::class, true);
+        $this->application()->register(EnvSettingsServiceProvider::class, true);
 
         $settings = app(FakeAuthSettings::class);
 
@@ -32,7 +32,7 @@ class RegistrationTest extends TestCase
     {
         app()->detectEnvironment(fn () => 'local');
         config()->set('env-settings.register', [FakeAuthSettings::class]);
-        $this->app->register(EnvSettingsServiceProvider::class, true);
+        $this->application()->register(EnvSettingsServiceProvider::class, true);
 
         $settings = app(FakeAuthSettings::class);
 
@@ -47,7 +47,7 @@ class RegistrationTest extends TestCase
             FakeAuthSettings::class,
             FakePaymentSettings::class,
         ]);
-        $this->app->register(EnvSettingsServiceProvider::class, true);
+        $this->application()->register(EnvSettingsServiceProvider::class, true);
 
         $auth = app(FakeAuthSettings::class);
         $payment = app(FakePaymentSettings::class);
@@ -60,7 +60,7 @@ class RegistrationTest extends TestCase
     public function test_auto_registered_classes_are_singletons(): void
     {
         config()->set('env-settings.register', [FakeAuthSettings::class]);
-        $this->app->register(EnvSettingsServiceProvider::class, true);
+        $this->application()->register(EnvSettingsServiceProvider::class, true);
 
         $first = app(FakeAuthSettings::class);
         $second = app(FakeAuthSettings::class);
@@ -74,7 +74,7 @@ class RegistrationTest extends TestCase
             'NonExistent\\ClassName',
             FakeAuthSettings::class,
         ]);
-        $this->app->register(EnvSettingsServiceProvider::class, true);
+        $this->application()->register(EnvSettingsServiceProvider::class, true);
 
         // The valid class should still resolve
         $settings = app(FakeAuthSettings::class);
@@ -89,7 +89,7 @@ class RegistrationTest extends TestCase
     {
         app()->detectEnvironment(fn () => 'production');
 
-        $this->app->singleton(FakeAuthSettings::class, fn () => FakeAuthSettings::resolve());
+        $this->application()->singleton(FakeAuthSettings::class, fn () => FakeAuthSettings::resolve());
 
         $settings = app(FakeAuthSettings::class);
 
@@ -98,7 +98,7 @@ class RegistrationTest extends TestCase
 
     public function test_manual_registration_is_singleton(): void
     {
-        $this->app->singleton(FakePaymentSettings::class, fn () => FakePaymentSettings::resolve());
+        $this->application()->singleton(FakePaymentSettings::class, fn () => FakePaymentSettings::resolve());
 
         $first = app(FakePaymentSettings::class);
         $second = app(FakePaymentSettings::class);
@@ -114,7 +114,7 @@ class RegistrationTest extends TestCase
     {
         app()->detectEnvironment(fn () => 'production');
 
-        $this->app->singleton(FakeAppSettings::class, fn () => FakeAppSettings::resolve());
+        $this->application()->singleton(FakeAppSettings::class, fn () => FakeAppSettings::resolve());
 
         $app = app(FakeAppSettings::class);
 
@@ -128,7 +128,7 @@ class RegistrationTest extends TestCase
     {
         app()->detectEnvironment(fn () => 'local');
 
-        $this->app->singleton(FakeAppSettings::class, fn () => FakeAppSettings::resolve());
+        $this->application()->singleton(FakeAppSettings::class, fn () => FakeAppSettings::resolve());
 
         $app = app(FakeAppSettings::class);
 
@@ -140,7 +140,7 @@ class RegistrationTest extends TestCase
     {
         app()->detectEnvironment(fn () => 'staging');
 
-        $this->app->singleton(FakeAppSettings::class, fn () => FakeAppSettings::resolve());
+        $this->application()->singleton(FakeAppSettings::class, fn () => FakeAppSettings::resolve());
 
         $app = app(FakeAppSettings::class);
 
@@ -153,7 +153,7 @@ class RegistrationTest extends TestCase
     {
         app()->detectEnvironment(fn () => 'production');
         config()->set('env-settings.register', [FakeAppSettings::class]);
-        $this->app->register(EnvSettingsServiceProvider::class, true);
+        $this->application()->register(EnvSettingsServiceProvider::class, true);
 
         $app = app(FakeAppSettings::class);
 
@@ -169,7 +169,7 @@ class RegistrationTest extends TestCase
     {
         app()->detectEnvironment(fn () => 'production');
         config()->set('env-settings.register', [FakeAuthSettings::class]);
-        $this->app->register(EnvSettingsServiceProvider::class, true);
+        $this->application()->register(EnvSettingsServiceProvider::class, true);
 
         $settings = envSettings(FakeAuthSettings::class);
 
@@ -180,7 +180,7 @@ class RegistrationTest extends TestCase
     {
         app()->detectEnvironment(fn () => 'production');
         config()->set('env-settings.register', [FakeAppSettings::class]);
-        $this->app->register(EnvSettingsServiceProvider::class, true);
+        $this->application()->register(EnvSettingsServiceProvider::class, true);
 
         $app = envSettings(FakeAppSettings::class);
 

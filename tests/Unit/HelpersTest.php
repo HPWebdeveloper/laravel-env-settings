@@ -11,7 +11,7 @@ class HelpersTest extends TestCase
 {
     public function test_env_settings_helper_resolves_class(): void
     {
-        $this->app->singleton(FakeAuthSettings::class, fn () => FakeAuthSettings::development());
+        $this->application()->singleton(FakeAuthSettings::class, fn () => FakeAuthSettings::development());
 
         $settings = envSettings(FakeAuthSettings::class);
 

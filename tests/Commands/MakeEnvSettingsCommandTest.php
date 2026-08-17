@@ -68,7 +68,7 @@ class MakeEnvSettingsCommandTest extends TestCase
 
     public function test_it_creates_a_settings_class_file(): void
     {
-        $this->artisan('env-settings:make', [
+        $this->artisanCommand('env-settings:make', [
             'name' => 'AuthSettings',
             '--path' => $this->outputPath,
         ])->assertSuccessful();
@@ -78,24 +78,24 @@ class MakeEnvSettingsCommandTest extends TestCase
 
     public function test_generated_file_contains_correct_class_name(): void
     {
-        $this->artisan('env-settings:make', [
+        $this->artisanCommand('env-settings:make', [
             'name' => 'PaymentSettings',
             '--path' => $this->outputPath,
         ])->assertSuccessful();
 
-        $content = file_get_contents($this->outputPath.'/PaymentSettings.php');
+        $content = $this->readFile($this->outputPath.'/PaymentSettings.php');
 
         $this->assertStringContainsString('class PaymentSettings extends EnvironmentSettings', $content);
     }
 
     public function test_generated_file_has_development_and_production_methods(): void
     {
-        $this->artisan('env-settings:make', [
+        $this->artisanCommand('env-settings:make', [
             'name' => 'QueueSettings',
             '--path' => $this->outputPath,
         ])->assertSuccessful();
 
-        $content = file_get_contents($this->outputPath.'/QueueSettings.php');
+        $content = $this->readFile($this->outputPath.'/QueueSettings.php');
 
         $this->assertStringContainsString('public static function development(): static', $content);
         $this->assertStringContainsString('public static function production(): static', $content);
@@ -103,25 +103,25 @@ class MakeEnvSettingsCommandTest extends TestCase
 
     public function test_generated_file_has_default_example_property_when_no_properties_given(): void
     {
-        $this->artisan('env-settings:make', [
+        $this->artisanCommand('env-settings:make', [
             'name' => 'BasicSettings',
             '--path' => $this->outputPath,
         ])->assertSuccessful();
 
-        $content = file_get_contents($this->outputPath.'/BasicSettings.php');
+        $content = $this->readFile($this->outputPath.'/BasicSettings.php');
 
         $this->assertStringContainsString('public string $example', $content);
     }
 
     public function test_properties_option_generates_typed_constructor(): void
     {
-        $this->artisan('env-settings:make', [
+        $this->artisanCommand('env-settings:make', [
             'name' => 'ApiSettings',
             '--properties' => 'domain:string,timeout:int,enabled:bool',
             '--path' => $this->outputPath,
         ])->assertSuccessful();
 
-        $content = file_get_contents($this->outputPath.'/ApiSettings.php');
+        $content = $this->readFile($this->outputPath.'/ApiSettings.php');
 
         $this->assertStringContainsString('public string $domain', $content);
         $this->assertStringContainsString('public int $timeout', $content);
@@ -130,13 +130,13 @@ class MakeEnvSettingsCommandTest extends TestCase
 
     public function test_properties_option_generates_correct_defaults_in_factory_methods(): void
     {
-        $this->artisan('env-settings:make', [
+        $this->artisanCommand('env-settings:make', [
             'name' => 'MixedSettings',
             '--properties' => 'name:string,count:int,rate:float,active:bool,tags:array',
             '--path' => $this->outputPath,
         ])->assertSuccessful();
 
-        $content = file_get_contents($this->outputPath.'/MixedSettings.php');
+        $content = $this->readFile($this->outputPath.'/MixedSettings.php');
 
         $this->assertStringContainsString("name: ''", $content);
         $this->assertStringContainsString('count: 0', $content);
@@ -150,7 +150,7 @@ class MakeEnvSettingsCommandTest extends TestCase
         // Create the file first
         file_put_contents($this->outputPath.'/ExistingSettings.php', '<?php // existing');
 
-        $this->artisan('env-settings:make', [
+        $this->artisanCommand('env-settings:make', [
             'name' => 'ExistingSettings',
             '--path' => $this->outputPath,
         ])->assertFailed();
@@ -158,12 +158,12 @@ class MakeEnvSettingsCommandTest extends TestCase
 
     public function test_generated_file_has_correct_use_statement(): void
     {
-        $this->artisan('env-settings:make', [
+        $this->artisanCommand('env-settings:make', [
             'name' => 'TestSettings',
             '--path' => $this->outputPath,
         ])->assertSuccessful();
 
-        $content = file_get_contents($this->outputPath.'/TestSettings.php');
+        $content = $this->readFile($this->outputPath.'/TestSettings.php');
 
         $this->assertStringContainsString('use HpWebDeveloper\LaravelEnvSettings\EnvironmentSettings;', $content);
     }
@@ -178,7 +178,7 @@ class MakeEnvSettingsCommandTest extends TestCase
 
         $path = $this->appDir('Settings');
 
-        $this->artisan('env-settings:make', ['name' => 'DefaultSettings'])->assertSuccessful();
+        $this->artisanCommand('env-settings:make', ['name' => 'DefaultSettings'])->assertSuccessful();
 
         $this->assertSame('App\\Settings', $this->namespaceOf($path.'/DefaultSettings.php'));
     }
@@ -189,7 +189,7 @@ class MakeEnvSettingsCommandTest extends TestCase
         // lands, otherwise PSR-4 can never autoload it.
         $path = $this->appDir('Modules/Billing/Settings');
 
-        $this->artisan('env-settings:make', [
+        $this->artisanCommand('env-settings:make', [
             'name' => 'BillingSettings',
             '--path' => $path,
         ])->assertSuccessful();
@@ -202,7 +202,7 @@ class MakeEnvSettingsCommandTest extends TestCase
         $this->appDirs[] = app_path('Reporting');
         $this->appDirs[] = app_path('Settings');
 
-        $this->artisan('env-settings:make', [
+        $this->artisanCommand('env-settings:make', [
             'name' => 'ReportSettings',
             '--path' => app_path('Settings/../Reporting'),
         ])->assertSuccessful();
@@ -217,7 +217,7 @@ class MakeEnvSettingsCommandTest extends TestCase
     {
         config()->set('env-settings.class_namespace', 'App\\Settings');
 
-        $this->artisan('env-settings:make', [
+        $this->artisanCommand('env-settings:make', [
             'name' => 'OutsideSettings',
             '--path' => $this->outputPath,
         ])->expectsOutputToContain('Could not derive a namespace')
@@ -230,7 +230,7 @@ class MakeEnvSettingsCommandTest extends TestCase
     {
         $path = $this->appDir('Modules/Billing/Settings');
 
-        $this->artisan('env-settings:make', [
+        $this->artisanCommand('env-settings:make', [
             'name' => 'BillingSettings',
             '--path' => $path,
             '--namespace' => 'Acme\\Billing\\Config',
@@ -241,7 +241,7 @@ class MakeEnvSettingsCommandTest extends TestCase
 
     public function test_explicit_namespace_option_is_not_warned_about_outside_the_app_root(): void
     {
-        $this->artisan('env-settings:make', [
+        $this->artisanCommand('env-settings:make', [
             'name' => 'OutsideSettings',
             '--path' => $this->outputPath,
             '--namespace' => 'Acme\\Config',
@@ -253,7 +253,7 @@ class MakeEnvSettingsCommandTest extends TestCase
 
     public function test_it_fails_on_an_invalid_explicit_namespace(): void
     {
-        $this->artisan('env-settings:make', [
+        $this->artisanCommand('env-settings:make', [
             'name' => 'BadSettings',
             '--path' => $this->outputPath,
             '--namespace' => '123-Not Valid',
@@ -268,7 +268,7 @@ class MakeEnvSettingsCommandTest extends TestCase
     {
         config()->set('env-settings.class_namespace', '123 Nope');
 
-        $this->artisan('env-settings:make', [
+        $this->artisanCommand('env-settings:make', [
             'name' => 'FallbackSettings',
             '--path' => $this->outputPath,
         ])->assertSuccessful();
@@ -290,7 +290,7 @@ class MakeEnvSettingsCommandTest extends TestCase
             '// \App\Settings\PaymentSettings::class,',
         );
 
-        $this->artisan('env-settings:make', [
+        $this->artisanCommand('env-settings:make', [
             'name' => 'AuthSettings',
             '--path' => $this->outputPath,
             '--namespace' => 'App\\Settings',
@@ -306,7 +306,7 @@ class MakeEnvSettingsCommandTest extends TestCase
     {
         $configPath = $this->publishConfig('\App\Settings\AuthSettings::class,');
 
-        $this->artisan('env-settings:make', [
+        $this->artisanCommand('env-settings:make', [
             'name' => 'AuthSettings',
             '--path' => $this->outputPath,
             '--namespace' => 'App\\Settings',
@@ -315,7 +315,7 @@ class MakeEnvSettingsCommandTest extends TestCase
 
         $this->assertSame(
             1,
-            substr_count((string) file_get_contents($configPath), 'AuthSettings::class')
+            substr_count($this->readFile($configPath), 'AuthSettings::class')
         );
     }
 
@@ -323,7 +323,7 @@ class MakeEnvSettingsCommandTest extends TestCase
     {
         $configPath = $this->publishConfig();
 
-        $this->artisan('env-settings:make', [
+        $this->artisanCommand('env-settings:make', [
             'name' => 'ReportingSettings',
             '--path' => $this->outputPath,
             '--namespace' => 'App\\Settings',
@@ -340,7 +340,7 @@ class MakeEnvSettingsCommandTest extends TestCase
     {
         $this->assertFileDoesNotExist(config_path('env-settings.php'));
 
-        $this->artisan('env-settings:make', [
+        $this->artisanCommand('env-settings:make', [
             'name' => 'UnpublishedSettings',
             '--path' => $this->outputPath,
         ])->expectsOutputToContain('not published')
@@ -351,7 +351,7 @@ class MakeEnvSettingsCommandTest extends TestCase
     {
         file_put_contents(config_path('env-settings.php'), "<?php\n\nreturn [\n    'override' => false,\n];\n");
 
-        $this->artisan('env-settings:make', [
+        $this->artisanCommand('env-settings:make', [
             'name' => 'OrphanSettings',
             '--path' => $this->outputPath,
         ])->expectsOutputToContain('Could not find a `register` array')
@@ -368,7 +368,7 @@ class MakeEnvSettingsCommandTest extends TestCase
             "// see docs['register'] for details",
         );
 
-        $this->artisan('env-settings:make', [
+        $this->artisanCommand('env-settings:make', [
             'name' => 'AddedSettings',
             '--path' => $this->outputPath,
             '--namespace' => 'App\\Settings',
@@ -391,7 +391,7 @@ class MakeEnvSettingsCommandTest extends TestCase
             '\App\Settings\AuthSettings::class,',
         );
 
-        $this->artisan('env-settings:make', [
+        $this->artisanCommand('env-settings:make', [
             'name' => 'AuthSettings',
             '--path' => $this->outputPath,
             '--namespace' => 'App\\Settings',
@@ -408,7 +408,7 @@ class MakeEnvSettingsCommandTest extends TestCase
             '\App\Settings\KeptSettings::class,',
         );
 
-        $this->artisan('env-settings:make', [
+        $this->artisanCommand('env-settings:make', [
             'name' => 'NewSettings',
             '--path' => $this->outputPath,
             '--namespace' => 'App\\Settings',
@@ -443,7 +443,7 @@ class MakeEnvSettingsCommandTest extends TestCase
      */
     private function uncommentedLines(string $configPath): string
     {
-        $content = (string) file_get_contents($configPath);
+        $content = $this->readFile($configPath);
         $content = (string) preg_replace('%/\*[\s\S]*?\*/%', '', $content);
 
         return (string) preg_replace('%(//|\#).*$%m', '', $content);
@@ -453,7 +453,7 @@ class MakeEnvSettingsCommandTest extends TestCase
     {
         $this->assertFileExists($file);
 
-        preg_match('/^namespace (.+);$/m', (string) file_get_contents($file), $matches);
+        preg_match('/^namespace (.+);$/m', $this->readFile($file), $matches);
 
         return $matches[1] ?? '';
     }

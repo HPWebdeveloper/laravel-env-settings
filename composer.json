@@ -80,7 +80,7 @@
       "[ -f .githooks/pre-commit ] && chmod +x .githooks/pre-commit || true"
     ],
     "new:package": "php bin/bootstrap",
-    "stan": "phpstan analyse --no-progress --memory-limit=512M src",
+    "stan": "phpstan analyse --no-progress --memory-limit=512M",
     "test": "phpunit"
   }
 }

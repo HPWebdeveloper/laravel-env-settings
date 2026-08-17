@@ -7,6 +7,9 @@ namespace HpWebDeveloper\LaravelEnvSettings\Tests\Unit;
 use HpWebDeveloper\LaravelEnvSettings\Tests\Fixtures\FakeAuthSettings;
 use HpWebDeveloper\LaravelEnvSettings\Tests\Fixtures\FakePaymentSettings;
 use HpWebDeveloper\LaravelEnvSettings\Tests\TestCase;
+use ReflectionClass;
+use ReflectionNamedType;
+use ReflectionProperty;
 
 class EnvironmentSettingsTest extends TestCase
 {
@@ -102,11 +105,24 @@ class EnvironmentSettingsTest extends TestCase
 
     public function test_settings_properties_are_typed(): void
     {
-        $settings = FakeAuthSettings::development();
+        // Asserting the runtime type of a typed property only re-checks what
+        // PHP already guarantees. Read the declarations instead, which is
+        // what the promoted constructor is actually responsible for.
+        $declared = [];
 
-        $this->assertIsString($settings->domain);
-        $this->assertIsString($settings->redirect_url);
-        $this->assertIsInt($settings->timeout);
-        $this->assertIsBool($settings->mfa_enabled);
+        foreach ((new ReflectionClass(FakeAuthSettings::class))->getProperties(ReflectionProperty::IS_PUBLIC) as $property) {
+            $type = $property->getType();
+
+            $declared[$property->getName()] = $type instanceof ReflectionNamedType
+                ? $type->getName()
+                : null;
+        }
+
+        $this->assertSame([
+            'domain' => 'string',
+            'redirect_url' => 'string',
+            'timeout' => 'int',
+            'mfa_enabled' => 'bool',
+        ], $declared);
     }
 }

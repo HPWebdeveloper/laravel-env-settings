@@ -6,6 +6,12 @@ namespace HpWebDeveloper\LaravelEnvSettings\Tests\Fixtures;
 
 use HpWebDeveloper\LaravelEnvSettings\EnvironmentSettings;
 
+/**
+ * Extended by the Overrides fixture, so it cannot be final. The subclass
+ * keeps the same constructor, which is what makes `new static()` safe.
+ *
+ * @phpstan-consistent-constructor
+ */
 class FakeAuthSettings extends EnvironmentSettings
 {
     public function __construct(

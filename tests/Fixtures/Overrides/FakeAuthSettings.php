@@ -6,11 +6,11 @@ namespace HpWebDeveloper\LaravelEnvSettings\Tests\Fixtures\Overrides;
 
 use HpWebDeveloper\LaravelEnvSettings\Tests\Fixtures\FakeAuthSettings as BaseFakeAuthSettings;
 
-class FakeAuthSettings extends BaseFakeAuthSettings
+final class FakeAuthSettings extends BaseFakeAuthSettings
 {
     public static function development(): static
     {
-        return new static(
+        return new self(
             domain: 'my-local-override.test',
             redirect_url: 'http://my-local:8080/callback',
             timeout: 60,

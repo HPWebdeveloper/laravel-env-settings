@@ -25,7 +25,7 @@ class ServiceProviderTest extends TestCase
         config()->set('env-settings.register', [FakeAuthSettings::class]);
 
         // Re-register so the provider picks up the new config
-        $this->app->register(EnvSettingsServiceProvider::class, true);
+        $this->application()->register(EnvSettingsServiceProvider::class, true);
 
         $first = app(FakeAuthSettings::class);
         $second = app(FakeAuthSettings::class);

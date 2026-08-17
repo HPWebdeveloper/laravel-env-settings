@@ -243,7 +243,6 @@ Generated automatically by `bin/generate-test-inventory`. Edit tests to update t
   - Assertions: assertSame
 
 - test settings properties are typed
-  - Assertions: assertIsString, assertIsInt, assertIsBool
 
 ## tests/Unit/HelpersTest.php
 
