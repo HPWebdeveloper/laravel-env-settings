@@ -46,8 +46,15 @@ envSettings(PaymentSettings::class)->mode        // visible in git, reviewable i
 
 ## Requirements
 
-- PHP 8.3+
+- PHP 8.2+
 - Laravel 12.x / 13.x
+
+| Laravel | PHP       |
+| ------- | --------- |
+| 13.x    | 8.3 / 8.4 |
+| 12.x    | 8.2 – 8.4 |
+
+Laravel 13 requires PHP 8.3 or newer, so that combination is the floor there. Both are covered by the test suite on every commit.
 
 No other runtime dependencies.
 
@@ -619,7 +626,7 @@ Use `.env` for values that must change without deployment. Use this package for 
 
 ### Does this package have any third-party runtime dependencies?
 
-No. The only runtime requirement beyond PHP 8.3 is `illuminate/support`, which you already have in any Laravel application. `EnvironmentSettings` is a plain abstract PHP class that uses native constructor property promotion and reflection — nothing more.
+No. The only runtime requirement beyond PHP 8.2 is `illuminate/support`, which you already have in any Laravel application. `EnvironmentSettings` is a plain abstract PHP class that uses native constructor property promotion and reflection — nothing more.
 
 ### What happens if `APP_ENV` doesn't match any environment?
 

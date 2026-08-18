@@ -15,8 +15,29 @@ concurrency:
 
 jobs:
   tests:
-    name: PHP 8.3 • L12 • deps=highest • OS=ubuntu-latest
+    name: PHP ${{ matrix.php }} • L${{ matrix.laravel }} • deps=${{ matrix.dependency-version }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Laravel 12 supports PHP 8.2, so the floor is covered explicitly.
+          - php: "8.2"
+            laravel: 12
+            testbench: "^10.8.0"
+            dependency-version: lowest
+          - php: "8.3"
+            laravel: 12
+            testbench: "^10.8.0"
+            dependency-version: highest
+          - php: "8.3"
+            laravel: 13
+            testbench: "^11.0"
+            dependency-version: highest
+          - php: "8.4"
+            laravel: 13
+            testbench: "^11.0"
+            dependency-version: highest
     env:
       # Throttle parallel HTTP downloads to reduce GitHub codeload 429 rate limit occurrences for all child packages inheriting this workflow.
       COMPOSER_MAX_PARALLEL_HTTP: 6
@@ -25,10 +46,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup PHP (8.3)
+      - name: Setup PHP ${{ matrix.php }}
         uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.3"
+          php-version: ${{ matrix.php }}
           extensions: mbstring, dom, pdo, sqlite3, pdo_sqlite, fileinfo
           coverage: none
           tools: composer:v2
@@ -50,18 +71,23 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ steps.composer-cache.outputs.dir }}
-          key: ${{ runner.os }}-composer-php83-highest-${{ hashFiles('**/composer.lock') }}
+          key: ${{ runner.os }}-composer-php${{ matrix.php }}-L${{ matrix.laravel }}-${{ matrix.dependency-version }}-${{ hashFiles('**/composer.json') }}
           restore-keys: |
-            ${{ runner.os }}-composer-php83-highest-
-            ${{ runner.os }}-composer-php83-
+            ${{ runner.os }}-composer-php${{ matrix.php }}-L${{ matrix.laravel }}-
+            ${{ runner.os }}-composer-php${{ matrix.php }}-
 
       - name: Install dependencies
         shell: bash
         run: |
           set -euo pipefail
           echo "Starting composer update with limited parallel HTTP=${COMPOSER_MAX_PARALLEL_HTTP}";
+          composer require --no-update --dev "orchestra/testbench:${{ matrix.testbench }}"
+          FLAGS="--no-interaction --prefer-dist --no-progress"
+          if [ "${{ matrix.dependency-version }}" = "lowest" ]; then
+            FLAGS="$FLAGS --prefer-lowest --prefer-stable"
+          fi
           for attempt in 1 2 3; do
-            if composer update --no-interaction --prefer-dist --no-progress; then
+            if composer update $FLAGS; then
               break
             fi
             echo "Composer update failed (attempt ${attempt}). Retrying after backoff..." >&2
@@ -78,6 +104,7 @@ jobs:
         run: composer test
 
       - name: Check test inventory docs up-to-date
+        if: matrix.php == '8.3' && matrix.laravel == 13
         shell: bash
         run: |
           set -euo pipefail
