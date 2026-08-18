@@ -98,7 +98,10 @@ foreach ($phpFiles as $file) {
 
 // Build Markdown
 $out = [];
-$out[] = '# Test inventory for this package';
+// Title from composer.json so the inventory is not stamped with another package's name.
+$composer = @json_decode((string) @file_get_contents($root . '/composer.json'), true);
+$packageName = is_array($composer) && isset($composer['name']) ? (string) $composer['name'] : 'this package';
+$out[] = '# Test inventory for ' . $packageName;
 $out[] = '';
 $out[] = 'Generated automatically by `bin/generate-test-inventory`. Edit tests to update this list.';
 $out[] = '';

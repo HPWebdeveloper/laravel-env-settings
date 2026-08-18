@@ -1,4 +1,4 @@
-# Test inventory for this package
+# Test inventory for hpwebdeveloper/laravel-env-settings
 
 Generated automatically by `bin/generate-test-inventory`. Edit tests to update this list.
 
