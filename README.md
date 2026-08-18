@@ -51,10 +51,10 @@ envSettings(PaymentSettings::class)->mode        // visible in git, reviewable i
 
 | Laravel | PHP       |
 | ------- | --------- |
-| 13.x    | 8.3 / 8.4 |
-| 12.x    | 8.2 – 8.4 |
+| 13.x    | 8.3 – 8.5 |
+| 12.x    | 8.2 – 8.5 |
 
-Laravel 13 requires PHP 8.3 or newer, so that combination is the floor there. Both are covered by the test suite on every commit.
+Laravel 13 requires PHP 8.3 or newer, so that combination is the floor there. Every combination above is covered by the CI test matrix.
 
 No other runtime dependencies.
 

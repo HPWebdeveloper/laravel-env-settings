@@ -30,11 +30,19 @@ jobs:
             laravel: 12
             testbench: "^10.8.0"
             dependency-version: highest
+          - php: "8.5"
+            laravel: 12
+            testbench: "^10.8.0"
+            dependency-version: highest
           - php: "8.3"
             laravel: 13
             testbench: "^11.0"
             dependency-version: highest
           - php: "8.4"
+            laravel: 13
+            testbench: "^11.0"
+            dependency-version: highest
+          - php: "8.5"
             laravel: 13
             testbench: "^11.0"
             dependency-version: highest
