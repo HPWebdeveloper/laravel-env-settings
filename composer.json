@@ -60,15 +60,11 @@
   },
   "scripts": {
     "post-install-cmd": [
-      "@hooks:enable",
-      "php bin/post-install-message.php"
+      "@hooks:enable"
     ],
     "post-update-cmd": [
-      "@hooks:enable",
-      "php bin/post-install-message.php"
+      "@hooks:enable"
     ],
-    "bootstrap": "php bin/bootstrap",
-    "clean:docs": "php bin/clean-docs",
     "composer:normalize": "composer normalize",
     "composer:normalize:check": "composer normalize --dry-run --no-interaction",
     "docs:tests": "php bin/generate-test-inventory",
@@ -79,7 +75,6 @@
       "[ -d .git ] && git config core.hooksPath .githooks || true",
       "[ -f .githooks/pre-commit ] && chmod +x .githooks/pre-commit || true"
     ],
-    "new:package": "php bin/bootstrap",
     "stan": "phpstan analyse --no-progress --memory-limit=512M",
     "test": "phpunit"
   }
