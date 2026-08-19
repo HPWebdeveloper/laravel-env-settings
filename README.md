@@ -10,6 +10,9 @@ Move non-secret values out of `.env` and into typed PHP classes that resolve aut
 
 Most of a typical `.env` holds no secrets at all — API URLs, model names, timeouts, queue names, feature modes. Those belong in version control, where they are typed, reviewable in pull requests, and visible to your whole team. This package keeps `.env` for secrets and the stock Laravel keys, and puts everything your application adds on top into `app/Settings`.
 
+> **Live demo** — [laravel-env-setting-demo.on-forge.com](https://laravel-env-setting-demo.on-forge.com)
+> A working Laravel application with worked examples of settings classes, environment switching, and the Artisan commands, so you can see the package in practice before installing it.
+
 ```php
 // Before: scattered, untyped, invisible to code review
 $domain = config('services.auth0.domain');   // typo? runtime surprise
