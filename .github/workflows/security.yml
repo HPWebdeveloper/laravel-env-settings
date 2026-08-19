@@ -28,11 +28,20 @@ jobs:
           tools: composer:v2
 
       - name: Run composer audit
+        env:
+          # Throttle parallel HTTP downloads to reduce GitHub codeload 429s.
+          COMPOSER_MAX_PARALLEL_HTTP: 6
         run: |
+          set -euo pipefail
           composer validate --strict
-          # Use --locked to audit the lock file and avoid network noise
           if [ -f composer.lock ]; then
+            # Applications commit composer.lock, so the lock file can be
+            # audited directly without installing anything.
             composer audit --locked --no-interaction
           else
+            # Libraries do not commit composer.lock. `composer audit` reads
+            # installed packages, so dependencies have to be resolved first
+            # or it exits with "No installed packages found".
+            composer update --no-interaction --prefer-dist --no-progress
             composer audit --no-interaction
           fi
