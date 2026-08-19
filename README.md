@@ -4,85 +4,60 @@
 [![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/HPWebdeveloper/laravel-env-setting/ci.yml?branch=main&label=tests&style=flat-square)](https://github.com/HPWebdeveloper/laravel-env-setting/actions?query=workflow%3ACI+branch%3Amain)
 [![Total Downloads](https://img.shields.io/packagist/dt/hpwebdeveloper/laravel-env-settings.svg?style=flat-square)](https://packagist.org/packages/hpwebdeveloper/laravel-env-settings)
 
-### 50–80% of a typical enterprise .env is not secret.
+**Type-safe, environment-aware configuration for Laravel.**
 
-This package helps you keep `.env` for **secrets** and for the **stock Laravel keys**. `app/Settings/*.php` is for the **configuration your application adds on top of Laravel** — third-party integrations, AI providers, payment gateways, microservice endpoints, and every other non-secret value that varies by environment.
+Move non-secret values out of `.env` and into typed PHP classes that resolve automatically from `APP_ENV`.
 
-Your `.env` gets smaller and holds only secrets. PHP classes hold the non-secret operational truth of the system.
-
-- [Demo application](https://github.com/HPWebdeveloper/laravel-env-setting-demo)
-- [Why not just `.env`?](https://github.com/HPWebdeveloper/document-hb-pattern/blob/main/7-why-not-just-env.md)
-
-**Environment-aware, type-safe configuration classes for Laravel.**
-
-Move non-secret values out of `.env` and into typed, IDE-friendly PHP classes that resolve automatically based on your current _environment_.
-
----
-
-## This package is for you if…
-
-- You believe **`.env` is for secrets** — not for URLs, model names, queue priorities, and scheduler intervals that have no business hiding outside version control
-- Your team has **3+ developers** and you're tired of "what's the staging value for X?" messages — because the answer is buried in a `.env` file no one can see in a PR
-- Your application runs across **multiple environments** (local, staging, production) and your `.env` files are 80+ lines of values that aren't secret at all
-- You want **fully typed settings** with IDE autocomplete, so `envSettings(AuthSettings::class)->domain` replaces `config('services.auth0.domain')` and the stringly-typed guessing game ends
-- You've been burned by `env()` returning `null` in production because someone forgot that **`env()` doesn't work after `config:cache`**
-- You run **different AI models per environment** — a cheap model for development, mid-tier for staging, the best for production — and you want that choice to be explicit, typed, and reviewable in code
+Most of a typical `.env` holds no secrets at all — API URLs, model names, timeouts, queue names, feature modes. Those belong in version control, where they are typed, reviewable in pull requests, and visible to your whole team. This package keeps `.env` for secrets and the stock Laravel keys, and puts everything your application adds on top into `app/Settings`.
 
 ```php
 // Before: scattered, untyped, invisible to code review
 $domain = config('services.auth0.domain');   // typo? runtime surprise
-$model = env('OPENAI_TEXT_MODEL');           // string? null? who knows
-$mode = env('PAYMENT_MODE', 'test');         // what's production's value? check the server
+$model  = env('OPENAI_TEXT_MODEL');          // string? null? who knows
+$mode   = env('PAYMENT_MODE', 'test');       // what's production's value? check the server
 
 // After: typed, environment-aware, in version control
-envSettings(AuthSettings::class)->domain         // string, IDE autocomplete
-envSettings(AiSettings::class)->text_model       // defined per environment
-envSettings(PaymentSettings::class)->mode        // visible in git, reviewable in PRs
+envSettings(AuthSettings::class)->domain     // string, IDE autocomplete
+envSettings(AiSettings::class)->text_model   // defined per environment
+envSettings(PaymentSettings::class)->mode    // visible in git, reviewable in PRs
 ```
 
-> **Note**: This package is NOT a database-backed settings manager (use [spatie/laravel-settings](https://github.com/spatie/laravel-settings) for that). It is NOT a feature flag system (use [Laravel Pennant](https://laravel.com/docs/pennant) for that). It is a **typed configuration layer** for non-secret values that differ between environments.
+## This package is for you if…
 
----
+- You believe **`.env` is for secrets** — not for URLs, model names, and timeouts that have no reason to hide outside version control.
+- Your `.env` files run to dozens of lines that **aren't secret at all**, and nobody can review a change to them.
+- You want **fully typed settings** with IDE autocomplete, so `envSettings(AuthSettings::class)->domain` replaces stringly-typed `config()` lookups.
+- You've been burned by `env()` returning `null` in production because **`env()` stops working after `config:cache`**.
+
+> **Note**
+> This is **not** a database-backed settings manager (use [spatie/laravel-settings](https://github.com/spatie/laravel-settings)) and **not** a feature flag system (use [Laravel Pennant](https://laravel.com/docs/pennant)). It is a typed configuration layer for non-secret values that differ between environments.
 
 ## Requirements
-
-- PHP 8.2+
-- Laravel 12.x / 13.x
 
 | Laravel | PHP       |
 | ------- | --------- |
 | 13.x    | 8.3 – 8.5 |
 | 12.x    | 8.2 – 8.5 |
 
-Laravel 13 requires PHP 8.3 or newer, so that combination is the floor there. Every combination above is covered by the CI test matrix.
-
-No other runtime dependencies.
+Every combination above is covered by the CI test matrix. The only runtime dependency is `illuminate/support`, which every Laravel application already has.
 
 ## Installation
 
 ```bash
 composer require hpwebdeveloper/laravel-env-settings
-```
-
-Publish the config file:
-
-```bash
 php artisan vendor:publish --tag="env-settings-config"
 ```
-
-This creates `config/env-settings.php`.
-
----
 
 ## Quick Start
 
 ### 1. Generate a settings class
 
 ```bash
-php artisan env-settings:make AuthSettings --properties="domain:string,redirect_url:string,timeout:int,mfa_enabled:bool"
+php artisan env-settings:make AuthSettings \
+    --properties="domain:string,redirect_url:string,timeout:int,mfa_enabled:bool"
 ```
 
-This creates `app/Settings/AuthSettings.php` with the structure in place and placeholder values for you to fill in:
+This creates `app/Settings/AuthSettings.php` with the structure in place and `// TODO` placeholders for each value. Fill them in:
 
 ```php
 <?php
@@ -105,48 +80,26 @@ class AuthSettings extends EnvironmentSettings
     public static function development(): static
     {
         return new static(
-            domain: '', // TODO: set development value
-            redirect_url: '', // TODO: set development value
-            timeout: 0, // TODO: set development value
-            mfa_enabled: false, // TODO: set development value
+            domain: 'dev.auth.example.com',
+            redirect_url: 'http://localhost:8000/callback',
+            timeout: 30,
+            mfa_enabled: false,
         );
     }
 
     public static function production(): static
     {
         return new static(
-            domain: '', // TODO: set production value
-            redirect_url: '', // TODO: set production value
-            timeout: 0, // TODO: set production value
-            mfa_enabled: false, // TODO: set production value
+            domain: 'auth.example.com',
+            redirect_url: 'https://app.example.com/callback',
+            timeout: 10,
+            mfa_enabled: true,
         );
     }
 }
 ```
 
-Fill in the values for each environment:
-
-```php
-public static function development(): static
-{
-    return new static(
-        domain: 'dev.auth.example.com',
-        redirect_url: 'http://localhost:8000/callback',
-        timeout: 30,
-        mfa_enabled: false,
-    );
-}
-
-public static function production(): static
-{
-    return new static(
-        domain: 'auth.example.com',
-        redirect_url: 'https://app.example.com/callback',
-        timeout: 10,
-        mfa_enabled: true,
-    );
-}
-```
+Supported property types: `string`, `int`, `float`, `bool`, `array`.
 
 ### 2. Register it
 
@@ -158,131 +111,83 @@ A settings class stays inert until it is listed in `config/env-settings.php`:
 ],
 ```
 
-`env-settings:make` appends this line for you when the config has been published. If it can't — the config isn't published yet, or it has no `register` array — it says so and tells you what to add, so a class is never left silently unregistered.
+`env-settings:make` appends this line for you when the config has been published. If it can't — the config isn't published, or it has no `register` array — it tells you exactly what to add, so a class is never left silently unregistered.
+
+Each registered class becomes a **singleton** in the service container, resolved once and reused for the lifetime of the request.
 
 ### 3. Use it anywhere
 
 ```php
-// Via the helper function
+// The helper — template-typed, so your IDE autocompletes the result
 $domain = envSettings(AuthSettings::class)->domain;
 
-// Via the container
-$auth = app(AuthSettings::class);
-$auth->timeout; // 10 in production, 30 in development
-
-// Type-hinted injection
+// Constructor injection
 public function __construct(private AuthSettings $auth) {}
+
+// The container
+app(AuthSettings::class)->timeout;   // 10 in production, 30 in development
 ```
 
-That's it. The package resolves the correct environment automatically based on `APP_ENV`.
-
----
+That's it. The correct environment is resolved automatically.
 
 ## How It Works
 
-Your settings classes extend `EnvironmentSettings` and define static factory methods for each environment:
-
-```php
-class PaymentSettings extends EnvironmentSettings
-{
-    public function __construct(
-        public string $mode,
-        public string $currency,
-        public int $retry_attempts,
-    ) {}
-
-    public static function development(): static
-    {
-        return new static(mode: 'test', currency: 'EUR', retry_attempts: 1);
-    }
-
-    public static function production(): static
-    {
-        return new static(mode: 'live', currency: 'EUR', retry_attempts: 5);
-    }
-}
-```
-
-When the package resolves a settings class, it:
+Each settings class defines one static factory per environment. When the package resolves a class, it:
 
 1. Reads `APP_ENV` (e.g. `local`, `staging`, `production`)
-2. Maps it via the `environment_map` config (e.g. `local` → `development`)
-3. Calls the corresponding static method (e.g. `::development()`)
+2. Maps it through the `environment_map` config (e.g. `local` → `development`)
+3. Calls the matching static method (e.g. `::development()`)
 4. Returns a fully typed instance
 
-### Required methods
+Resolution uses `app()->environment()` and `config()` — never `env()` — so it is fully compatible with `php artisan config:cache`.
 
-- `development()` — **required** (abstract)
-- `production()` — **required** (abstract)
+**Required methods** — `development()` and `production()` are abstract, so every settings class must define both.
 
-### Optional methods
-
-- `staging()` — defaults to `development()` if not defined
-- `testing()` — defaults to `development()` if not defined
-
-Override `staging()` or `testing()` only when their values differ from development:
+**Optional methods** — `staging()` and `testing()` fall back to `development()`. Override them only when their values genuinely differ:
 
 ```php
 public static function staging(): static
 {
     return new static(
-        mode: 'test',
-        currency: 'EUR',
-        retry_attempts: 3, // more than dev, less than prod
+        domain: 'staging.auth.example.com',
+        redirect_url: 'https://staging.example.com/callback',
+        timeout: 20,
+        mfa_enabled: true,
     );
 }
 ```
 
----
-
-## The `envSettings()` Helper
-
-The global helper resolves a settings class from the container:
+### Environment map
 
 ```php
-envSettings(AuthSettings::class)->domain;
-envSettings(PaymentSettings::class)->mode;
-```
-
-It is template-typed, so your IDE provides full autocomplete on the returned instance.
-
----
-
-## Registering Settings
-
-Add your classes to the `register` array in `config/env-settings.php`:
-
-```php
-'register' => [
-    \App\Settings\AuthSettings::class,
-    \App\Settings\PaymentSettings::class,
-    \App\Settings\AiSettings::class,
+'environment_map' => [
+    'local'      => 'development',
+    'dev'        => 'development',
+    'develop'    => 'development',
+    'staging'    => 'staging',
+    'stage'      => 'staging',
+    'production' => 'production',
+    'prod'       => 'production',
+    'testing'    => 'testing',
+    'test'       => 'testing',
 ],
 ```
 
-Each class is registered as a **singleton** in the service container, resolved once via `::resolve()` and reused for the lifetime of the request.
-
-You can also register manually in a service provider:
-
-```php
-$this->app->singleton(AuthSettings::class, fn () => AuthSettings::resolve());
-```
+If `APP_ENV` matches no key, `fallback_environment` is used (default: `development`).
 
 ### Where generated classes live
 
-`env-settings:make` writes to `app/Settings` under the `App\Settings` namespace by default. Change the default namespace with:
+`env-settings:make` writes to `app/Settings` under the `App\Settings` namespace. Change the default with:
 
 ```php
 'class_namespace' => 'App\\Settings',
 ```
 
-This is the fallback only — an explicit `--namespace`, or a namespace derived from `--path`, takes precedence. See [`env-settings:make`](#env-settingsmake) for the full order.
+This is the fallback only — an explicit `--namespace`, or a namespace derived from `--path`, takes precedence. See [`env-settings:make`](#env-settingsmake).
 
----
+## Composing Settings
 
-## Root Settings with Nested Sub-Settings
-
-For applications with many settings classes, create a root settings object that composes them:
+For applications with many settings classes, compose them into a root object:
 
 ```php
 class AppSettings extends EnvironmentSettings
@@ -290,7 +195,6 @@ class AppSettings extends EnvironmentSettings
     public function __construct(
         public AuthSettings $auth,
         public PaymentSettings $payment,
-        public AiSettings $ai,
     ) {}
 
     public static function development(): static
@@ -298,7 +202,6 @@ class AppSettings extends EnvironmentSettings
         return new static(
             auth: AuthSettings::development(),
             payment: PaymentSettings::development(),
-            ai: AiSettings::development(),
         );
     }
 
@@ -307,37 +210,27 @@ class AppSettings extends EnvironmentSettings
         return new static(
             auth: AuthSettings::production(),
             payment: PaymentSettings::production(),
-            ai: AiSettings::production(),
         );
     }
 }
 ```
 
-Then access nested settings:
-
 ```php
 envSettings(AppSettings::class)->auth->domain;
 envSettings(AppSettings::class)->payment->mode;
-envSettings(AppSettings::class)->ai->text_model;
 ```
-
----
 
 ## Local Development Overrides
 
-Individual developers can override settings locally without modifying committed code.
+Individual developers can override settings locally without touching committed code.
 
-### 1. Enable overrides
-
-In your `.env`:
+**1.** Enable overrides in your `.env`:
 
 ```env
 ENV_SETTINGS_OVERRIDE=true
 ```
 
-### 2. Create an override class
-
-Create `app/Settings/Overrides/AuthSettings.php`:
+**2.** Create `app/Settings/Overrides/AuthSettings.php`, extending the base class and overriding only the factories you need:
 
 ```php
 <?php
@@ -360,13 +253,13 @@ class AuthSettings extends BaseAuthSettings
 }
 ```
 
-### 3. Add to `.gitignore`
+**3.** Add the directory to `.gitignore`:
 
 ```gitignore
 app/Settings/Overrides/
 ```
 
-The override class is used instead of the base class when resolving. When override is disabled or the file doesn't exist, the base class is used as normal.
+The override class is used instead of the base class when resolving. When overrides are disabled or the file doesn't exist, the base class is used as normal.
 
 ### Configuring the override location
 
@@ -376,54 +269,30 @@ The override class is used instead of the base class when resolving. When overri
 'override_namespace' => 'App\\Settings\\Overrides',
 ```
 
-`override_path` is resolved at runtime, once the application has booted. A relative path is resolved against `app_path()`; an absolute path is used as-is:
+`override_path` is resolved at runtime, once the application has booted:
 
-| `override_path`          | Resolves to                        |
-| ------------------------ | ---------------------------------- |
-| `null` (default)         | `app_path('Settings/Overrides')`   |
-| `'Custom/Overrides'`     | `app_path('Custom/Overrides')`     |
-| `'/mnt/shared/overrides'`| `/mnt/shared/overrides`            |
+| `override_path`           | Resolves to                      |
+| ------------------------- | -------------------------------- |
+| `null` (default)          | `app_path('Settings/Overrides')` |
+| `'Custom/Overrides'`      | `app_path('Custom/Overrides')`   |
+| `'/mnt/shared/overrides'` | `/mnt/shared/overrides`          |
 
-> **Note**: Prefer a relative path over calling `app_path()` in the config file. `php artisan config:cache` evaluates every config file once and writes the result to `bootstrap/cache/config.php`, so `app_path()` freezes the application's absolute path **as it was when the cache was built**. Anywhere the app runs from a different directory than the build — Docker multi-stage builds, CI-built deployment artifacts, Forge/Envoyer releases in per-deploy directories — that cached path no longer exists. Override lookup then silently finds nothing and falls back to the base class, with no error to point at the cause. A relative path carries no build-time location, so it stays correct on every host.
-
----
-
-## Environment Map
-
-The `environment_map` config maps your `APP_ENV` values to factory method names:
-
-```php
-'environment_map' => [
-    'local'      => 'development',
-    'dev'        => 'development',
-    'develop'    => 'development',
-    'staging'    => 'staging',
-    'stage'      => 'staging',
-    'production' => 'production',
-    'prod'       => 'production',
-    'testing'    => 'testing',
-    'test'       => 'testing',
-],
-```
-
-If `APP_ENV` doesn't match any key, the `fallback_environment` is used (default: `development`).
-
----
+> **Note**
+> Prefer a relative path over calling `app_path()` in the config file. `config:cache` evaluates each config file once and writes the result to `bootstrap/cache/config.php`, freezing the absolute path as it was when the cache was built. Wherever the app runs from a different directory than the build — Docker multi-stage builds, CI-built artifacts, per-release deploy directories — that path no longer exists, and override lookup silently falls back to the base class. A relative path carries no build-time location.
 
 ## Artisan Commands
 
 ### `env-settings:make`
-
-Generate a new settings class:
 
 ```bash
 # Basic
 php artisan env-settings:make NotificationSettings
 
 # With typed properties
-php artisan env-settings:make NotificationSettings --properties="sms_provider:string,default_channel:string,rate_limit_per_minute:int,sandbox_mode:bool"
+php artisan env-settings:make NotificationSettings \
+    --properties="sms_provider:string,rate_limit_per_minute:int,sandbox_mode:bool"
 
-# Custom path — namespace follows the directory: App\Settings\Infrastructure
+# Custom path — namespace follows the directory
 php artisan env-settings:make NotificationSettings --path=app/Settings/Infrastructure
 
 # Explicit namespace, for directories outside the application root
@@ -431,37 +300,28 @@ php artisan env-settings:make NotificationSettings \
     --path=packages/billing/src/Settings --namespace="Acme\\Billing\\Settings"
 ```
 
-#### How the namespace is chosen
-
-A generated class only autoloads if its namespace matches where the file was written, so the namespace is resolved in this order:
+**How the namespace is chosen.** A generated class only autoloads if its namespace matches where the file was written, so the namespace is resolved in this order:
 
 1. **`--namespace`**, when given — used exactly as provided.
 2. **Derived from `--path`**, when that directory sits under the application root. The root namespace is read from your application's own PSR-4 mapping, so a renamed app root maps correctly.
-3. **`config('env-settings.class_namespace')`** — the project-wide default, `App\Settings`.
+3. **`config('env-settings.class_namespace')`** — the project-wide default.
 
-| Command | Namespace |
-| ------- | --------- |
-| `env-settings:make FooSettings` | `App\Settings` |
-| `--path=app/Settings/Infrastructure` | `App\Settings\Infrastructure` |
-| `--path=app/Modules/Billing/Settings` | `App\Modules\Billing\Settings` |
-| `--path=packages/billing/src` | `App\Settings` + warning |
-| `--path=packages/billing/src --namespace="Acme\Billing"` | `Acme\Billing` |
+| Command                                                    | Namespace                     |
+| ---------------------------------------------------------- | ----------------------------- |
+| `env-settings:make FooSettings`                             | `App\Settings`                |
+| `--path=app/Settings/Infrastructure`                        | `App\Settings\Infrastructure` |
+| `--path=app/Modules/Billing/Settings`                       | `App\Modules\Billing\Settings`|
+| `--path=packages/billing/src`                               | `App\Settings` + warning      |
+| `--path=packages/billing/src --namespace="Acme\Billing"`    | `Acme\Billing`                |
 
-> **Note**: A path outside the application root has no PSR-4 mapping this command can read, so it falls back to the configured default and warns you. Pass `--namespace` in that case — otherwise the file is written with a namespace that will not autoload.
+A path outside the application root has no PSR-4 mapping the command can read, so it falls back to the configured default and warns you. Pass `--namespace` in that case.
 
 ### `env-settings:show`
 
-Display resolved settings for the current environment:
-
 ```bash
-# Show a specific class
-php artisan env-settings:show "App\Settings\AuthSettings"
-
-# Show all registered classes
-php artisan env-settings:show
+php artisan env-settings:show                                # all registered classes
+php artisan env-settings:show "App\Settings\AuthSettings"    # one class
 ```
-
-Output:
 
 ```
 [ AuthSettings ] — Environment: production
@@ -475,11 +335,9 @@ Output:
 +--------------+--------+----------------------------------+
 ```
 
-Sensitive properties (containing `key`, `secret`, `password`, `token`) are automatically masked with `********`.
+Properties whose names contain `key`, `secret`, `password`, or `token` are masked with `********`. This is a safety net, not a feature — secrets belong in `.env`, not in a settings class.
 
 ### `env-settings:diff`
-
-Compare settings between two environments:
 
 ```bash
 # Fully specified
@@ -488,8 +346,6 @@ php artisan env-settings:diff "App\Settings\AuthSettings" development production
 # Omit any argument and you'll be prompted for it
 php artisan env-settings:diff
 ```
-
-Output:
 
 ```
 [ AuthSettings ] — Comparing development vs production
@@ -504,31 +360,30 @@ Output:
 * = values differ between environments
 ```
 
----
+## Testing
 
-## Testing Your Settings
-
-Since settings are registered as singletons, you can easily swap them in tests:
+Settings are singletons, so they are easy to swap:
 
 ```php
-// Bind a specific instance for testing
+// Bind a specific instance
 $this->app->singleton(AuthSettings::class, fn () => new AuthSettings(
     domain: 'test.example.com',
-    redirect_url: 'http://test/callback',
+    redirect_url: 'http://test.example.com/callback',
     timeout: 5,
     mfa_enabled: false,
 ));
 
-// Or resolve directly for a specific environment
-$settings = AuthSettings::development();
-$this->assertEquals('dev.auth.example.com', $settings->domain);
+// Or assert a specific environment's values directly
+$this->assertSame('dev.auth.example.com', AuthSettings::development()->domain);
 ```
 
----
+## AI Assistants
 
-## Real-World Example: AI/LLM Settings
+This package ships a [Laravel Boost](https://laravel.com/docs/boost) skill. If your project has both this package and `laravel/boost` installed, running `php artisan boost:install` offers to install it, teaching Boost-aware AI agents the package's conventions — including that secrets must never be placed in a settings class.
 
-AI-powered applications are a perfect use case — every environment uses different models, token limits, and providers:
+## Example: AI/LLM Settings
+
+Every environment tends to use different models, providers, and token limits — a good fit for typed, per-environment settings:
 
 ```php
 class AiSettings extends EnvironmentSettings
@@ -536,52 +391,27 @@ class AiSettings extends EnvironmentSettings
     public function __construct(
         public string $provider,
         public string $text_model,
-        public string $embeddings_model,
         public int $max_tokens,
-        public int $thinking_budget,
     ) {}
 
     public static function development(): static
     {
-        return new static(
-            provider: 'ollama',                        // free, local
-            text_model: 'llama3.1',
-            embeddings_model: 'nomic-embed-text',
-            max_tokens: 2000,
-            thinking_budget: 512,
-        );
+        return new static(provider: 'ollama', text_model: 'llama3.1', max_tokens: 2000);
     }
 
     public static function staging(): static
     {
-        return new static(
-            provider: 'openai',                        // cheap, hosted
-            text_model: 'gpt-4o-mini',
-            embeddings_model: 'text-embedding-3-small',
-            max_tokens: 4000,
-            thinking_budget: 2048,
-        );
+        return new static(provider: 'openai', text_model: 'gpt-4o-mini', max_tokens: 4000);
     }
 
     public static function production(): static
     {
-        return new static(
-            provider: 'openai',                        // best quality
-            text_model: 'gpt-4o',
-            embeddings_model: 'text-embedding-3-large',
-            max_tokens: 8000,
-            thinking_budget: 4096,
-        );
+        return new static(provider: 'openai', text_model: 'gpt-4o', max_tokens: 8000);
     }
 }
 ```
 
-Use it with **Prism** or **Laravel AI SDK**:
-
 ```php
-// Using Prism (echolabs/prism)
-use EchoLabs\Prism\Prism;
-
 $ai = envSettings(AiSettings::class);
 
 $response = Prism::text()
@@ -591,58 +421,37 @@ $response = Prism::text()
     ->asText();
 ```
 
-```php
-// Using Laravel AI SDK (laravel/ai)
-use Laravel\Ai\Facades\Ai;
-
-$ai = envSettings(AiSettings::class);
-
-$response = Ai::text()
-    ->using($ai->provider, $ai->text_model)
-    ->withMaxTokens($ai->max_tokens)
-    ->withPrompt('Summarize this document...')
-    ->asText();
-```
-
-Every model change, every provider swap, every token limit adjustment — visible in a PR, fully typed, zero `.env` juggling.
-
----
+Every model change and provider swap is visible in a pull request, fully typed, with no `.env` juggling.
 
 ## FAQ
 
 ### How is this different from `spatie/laravel-settings`?
 
-Completely different purpose. Spatie's package stores settings **in the database** for runtime changes (think admin panel toggles). This package stores settings **in code** for environment-specific configuration (think API URLs, model names, queue routing). They complement each other.
+Different purpose. Spatie's package stores settings **in the database** for runtime changes, such as admin panel toggles. This package stores settings **in code** for environment-specific configuration, such as API URLs and model names. They complement each other.
 
 ### Doesn't this violate the 12-Factor App methodology?
 
-The 12-Factor App says config should be stored in the environment. We agree — for **secrets**. But non-secret configuration (URLs, model names, feature flags) benefits from being in version control, type-safe, and reviewable. This package makes a deliberate distinction: secrets stay in `.env`, everything else lives in typed PHP classes.
+12-Factor says config belongs in the environment — and for **secrets**, that holds. But non-secret configuration benefits from being version-controlled, type-safe, and reviewable. This package draws that line deliberately: secrets stay in `.env`, everything else lives in typed PHP.
 
-> **How Laravel reads `.env`:** Laravel's shipped `config/*.php` files translate `.env` keys into `config()` entries during the `LoadConfiguration` bootstrap step. Laravel's core managers (DB, cache, queue, mail, log, session, broadcast, filesystem, hasher) then read from `config()` at boot. Two keys — `APP_ENV` and `APP_KEY` — are read even earlier, before any service provider runs. That’s why the stock Laravel keys stay in `.env`, and this package targets only the configuration your application adds on top.
+For context on why the stock Laravel keys stay in `.env`: Laravel's shipped `config/*.php` files translate `.env` keys into `config()` entries during the `LoadConfiguration` bootstrap step, and the core managers (database, cache, queue, mail, session, and so on) read from `config()` at boot. `APP_ENV` and `APP_KEY` are read earlier still, before any service provider runs. This package targets only the configuration your application adds on top.
 
 ### What if I need to change a value without redeploying?
 
-Use `.env` for values that must change without deployment. Use this package for values that should be reviewed before they change. In practice, most non-secret config changes (switching an AI model, changing a queue name) deserve a code review anyway.
-
-### Does this package have any third-party runtime dependencies?
-
-No. The only runtime requirement beyond PHP 8.2 is `illuminate/support`, which you already have in any Laravel application. `EnvironmentSettings` is a plain abstract PHP class that uses native constructor property promotion and reflection — nothing more.
+Use `.env` for values that must change without a deployment. Use this package for values that should be reviewed before they change. Most non-secret config changes — switching a model, renaming a queue — deserve a code review anyway.
 
 ### What happens if `APP_ENV` doesn't match any environment?
 
-The package falls back to the `fallback_environment` config value (default: `development`). You can customize this in `config/env-settings.php`.
-
----
+The package falls back to the `fallback_environment` config value (default: `development`).
 
 ## Changelog
 
-See [Releases](https://github.com/HPWebdeveloper/laravel-env-setting/releases) for what has changed recently.
+See [Releases](https://github.com/HPWebdeveloper/laravel-env-setting/releases) for recent changes.
 
 ## Contributing
 
 Issues and pull requests are welcome on [GitHub](https://github.com/HPWebdeveloper/laravel-env-setting).
 
-## Security Vulnerabilities
+## Security
 
 Please review [our security policy](../../security/policy) on how to report security vulnerabilities.
 
@@ -652,4 +461,4 @@ Please review [our security policy](../../security/policy) on how to report secu
 
 ## License
 
-The MIT License (MIT).
+The MIT License (MIT). See [LICENSE](LICENSE) for details.
