@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Determine source repository
         id: src
@@ -68,7 +68,7 @@ jobs:
           fi
 
       - name: Checkout skeleton source
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: ${{ steps.src.outputs.repo }}
           path: _source
