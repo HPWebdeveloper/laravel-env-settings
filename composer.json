@@ -22,7 +22,7 @@
     "illuminate/support": "^12.0 || ^13.0"
   },
   "require-dev": {
-    "ergebnis/composer-normalize": "^2.48",
+    "ergebnis/composer-normalize": "^2.52",
     "larastan/larastan": "^3.8.1",
     "laravel/pint": "^1.26",
     "orchestra/testbench": "^10.8.0 || ^11.0",
