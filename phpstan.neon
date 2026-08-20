@@ -1,0 +1,5 @@
+includes:
+  - phpstan.neon.dist
+
+# Local override: intentionally empty.
+# Keep repo-specific tweaks out of the dist; add here only if needed.

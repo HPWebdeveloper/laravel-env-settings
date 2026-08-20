@@ -1,0 +1,65 @@
+name-template: "v$NEXT_PATCH_VERSION"
+ tag-template: "v$NEXT_PATCH_VERSION"
+ categories:
+   - title: [1mBreaking Changes[0m
+     labels:
+       - breaking-change
+       - BC
+   - title: [1mFeatures[0m
+     labels:
+       - enhancement
+       - feature
+   - title: [1mBug Fixes[0m
+     labels:
+       - bug
+       - fix
+   - title: [1mMaintenance[0m
+     labels:
+       - chore
+       - dependencies
+       - refactor
+       - tests
+   - title: [1mDocumentation[0m
+     labels:
+       - docs
+ change-template: "- $TITLE (#$NUMBER) @$AUTHOR"
+ change-title-escapes: "\"`" # escape double quotes and backticks
+ exclude-labels:
+   - skip-changelog
+ template: |
+   ## What[1m[0m[0m Changed
+name-template: "v$NEXT_PATCH_VERSION"
+tag-template: "v$NEXT_PATCH_VERSION"
+categories:
+  - title: Breaking Changes
+    labels:
+      - breaking-change
+      - BC
+  - title: Features
+    labels:
+      - enhancement
+      - feature
+  - title: Bug Fixes
+    labels:
+      - bug
+      - fix
+  - title: Maintenance
+    labels:
+      - chore
+      - dependencies
+      - refactor
+      - tests
+  - title: Documentation
+    labels:
+      - docs
+change-template: "- $TITLE (#$NUMBER) @$AUTHOR"
+change-title-escapes: "\"`" # escape double quotes and backticks
+exclude-labels:
+  - skip-changelog
+template: |
+  ## What's Changed
+
+  $CHANGES
+
+  --
+  Compare: $COMPARE_URL

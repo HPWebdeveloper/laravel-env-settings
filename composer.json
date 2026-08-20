@@ -1,0 +1,81 @@
+{
+  "name": "hpwebdeveloper/laravel-env-settings",
+  "description": "Environment-aware, type-safe configuration classes for Laravel. Move non-secret values out of .env and into typed, IDE-friendly PHP classes.",
+  "license": "MIT",
+  "type": "library",
+  "keywords": [
+    "laravel",
+    "environment",
+    "settings",
+    "config",
+    "typed",
+    "env"
+  ],
+  "authors": [
+    {
+      "name": "Hamed Panjeh",
+      "email": "panjeh@gmail.com"
+    }
+  ],
+  "require": {
+    "php": "^8.2",
+    "illuminate/support": "^12.0 || ^13.0"
+  },
+  "require-dev": {
+    "ergebnis/composer-normalize": "^2.52",
+    "larastan/larastan": "^3.10.0",
+    "laravel/pint": "^1.26",
+    "orchestra/testbench": "^10.8.0 || ^11.0",
+    "orchestra/workbench": "^10.0.7 || ^11.0",
+    "phpstan/phpstan": "^2.2.8",
+    "phpunit/phpunit": "^11.5.56 || ^12.5.4",
+    "spatie/guidelines-skills": "dev-main"
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true,
+  "autoload": {
+    "psr-4": {
+      "HpWebDeveloper\\LaravelEnvSettings\\": "src/"
+    },
+    "files": [
+      "src/helpers.php"
+    ]
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "HpWebDeveloper\\LaravelEnvSettings\\Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "allow-plugins": {
+      "ergebnis/composer-normalize": true
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "HpWebDeveloper\\LaravelEnvSettings\\EnvSettingsServiceProvider"
+      ]
+    }
+  },
+  "scripts": {
+    "post-install-cmd": [
+      "@hooks:enable"
+    ],
+    "post-update-cmd": [
+      "@hooks:enable"
+    ],
+    "composer:normalize": "composer normalize",
+    "composer:normalize:check": "composer normalize --dry-run --no-interaction",
+    "docs:tests": "php bin/generate-test-inventory",
+    "format": "pint",
+    "format:check": "pint --test",
+    "format:dirty": "pint --dirty",
+    "hooks:enable": [
+      "[ -d .git ] && git config core.hooksPath .githooks || true",
+      "[ -f .githooks/pre-commit ] && chmod +x .githooks/pre-commit || true"
+    ],
+    "stan": "phpstan analyse --no-progress --memory-limit=512M",
+    "test": "phpunit"
+  }
+}

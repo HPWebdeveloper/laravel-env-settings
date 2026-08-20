@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# Pre-commit hygiene:
+# - Laravel Pint: checks only changed files and auto-fixes
+# - Composer Normalize: formats composer.json deterministically
+# - Test inventory doc: refreshes docs/tests.md
+
+set -euo pipefail
+
+# Ensure we're at repo root even if hook runs from .git/hooks
+cd "$(git rev-parse --show-toplevel)"
+
+# Only run if composer.json exists and Pint is installed
+if [[ ! -f composer.json ]]; then
+  exit 0
+fi
+
+if [[ ! -x vendor/bin/pint ]]; then
+  # Try running via Composer bin proxy if available
+  if ! command -v composer >/dev/null 2>&1; then
+    echo "composer not found; skipping Pint pre-commit" >&2
+    exit 0
+  fi
+fi
+
+# First, operate only on staged PHP files to avoid touching unstaged work.
+# - Collect staged PHP files (Added/Copied/Modified)
+# - Run Pint only on that list (use --test first), then fix and re-add only those files
+_STAGED_PHP=()
+# Portable collection of staged PHP files (avoids mapfile/readarray so it works on macOS' default Bash)
+while IFS= read -r _f; do
+  _STAGED_PHP+=("${_f}")
+done < <(git diff --name-only --cached --diff-filter=ACM -- '*.php' || true)
+if [[ ${#_STAGED_PHP[@]} -gt 0 ]]; then
+  # Ensure Pint binary exists (we checked earlier) and run tests against staged files
+  if ! vendor/bin/pint --test "${_STAGED_PHP[@]}" >/dev/null 2>&1; then
+    echo "Pint found style issues in staged files. Applying fixes..." >&2
+    # Run Pint to apply fixes to the same staged files only
+    vendor/bin/pint "${_STAGED_PHP[@]}" || true
+    # Re-add only the files we targeted (don't use a blanket add)
+    git add -- "${_STAGED_PHP[@]}"
+  fi
+else
+  # No staged PHP files to lint/format
+  :
+fi
+
+# Composer Normalize (if available)
+if command -v composer >/dev/null 2>&1; then
+  if composer normalize --dry-run --no-interaction >/dev/null 2>&1; then
+    : # already normalized
+  else
+    echo "Normalizing composer.json..." >&2
+    composer normalize --no-interaction || true
+    if [[ -f composer.json ]]; then
+      git add composer.json || true
+    fi
+    if [[ -f composer.lock ]]; then
+      git add composer.lock || true
+    fi
+  fi
+fi
+
+# Generate/refresh test inventory docs to keep docs/tests.md current
+if command -v composer >/dev/null 2>&1; then
+  if composer run -q docs:tests >/dev/null 2>&1; then
+    if ! git diff --quiet -- docs/tests.md; then
+      git add docs/tests.md
+      echo "Updated docs/tests.md (test inventory)." >&2
+    fi
+  fi
+fi
+
+exit 0

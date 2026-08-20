@@ -1,0 +1,2 @@
+# Ensure deterministic line endings for generated test inventory
+/docs/tests.md text eol=lf

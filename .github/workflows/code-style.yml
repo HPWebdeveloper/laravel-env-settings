@@ -1,0 +1,65 @@
+name: Code Style
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: style-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pint:
+    name: Laravel Pint
+    runs-on: ubuntu-latest
+    env:
+      # Throttle parallel HTTP downloads to reduce GitHub codeload 429s.
+      COMPOSER_MAX_PARALLEL_HTTP: 6
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          coverage: none
+          tools: composer:v2
+
+      - name: Configure GitHub OAuth for Composer (improves API rate limits)
+        run: composer config -g github-oauth.github.com "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer files
+        uses: actions/cache@v6
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-style-${{ hashFiles('**/composer.json') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-style-
+            ${{ runner.os }}-composer-
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if composer update --no-interaction --prefer-dist --no-progress; then
+              break
+            fi
+            echo "Composer update failed (attempt ${attempt}). Retrying after backoff..." >&2
+            sleep $((attempt*15))
+          done
+
+      # Uses the project's own Pint from require-dev, so CI formats with the
+      # same version and pint.json rules as developers do locally.
+      - name: Run Pint
+        run: composer format:check
