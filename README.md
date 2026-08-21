@@ -1,5 +1,7 @@
 # Laravel Env Settings
 
+<img width="882" height="924" alt="Image" src="https://github.com/user-attachments/assets/92dec5a7-40df-4a0f-840c-a813ba0af5f6" />
+
 <img width="978" height="632" alt="Image" src="https://github.com/user-attachments/assets/06bb850c-ebf1-49fb-87e0-337a7b7bcd71" />
 
 <sub>by [Hamed Panjeh](https://hpweb.dev/about)</sub>
