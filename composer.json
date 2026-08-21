@@ -14,9 +14,12 @@
   "authors": [
     {
       "name": "Hamed Panjeh",
-      "email": "panjeh@gmail.com"
+      "email": "panjeh@gmail.com",
+      "homepage": "https://hpweb.dev",
+      "role": "Developer"
     }
   ],
+  "homepage": "https://github.com/HPWebdeveloper/laravel-env-settings",
   "require": {
     "php": "^8.2",
     "illuminate/support": "^12.0 || ^13.0"

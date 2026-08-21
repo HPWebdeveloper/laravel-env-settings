@@ -1,5 +1,7 @@
 # Laravel Env Settings
 
+<sub>by [Hamed Panjeh](https://hpweb.dev) · [github](https://github.com/hpwebdeveloper)</sub>
+
 ### 🚀 [**See how this package works in practice — try the live demo**](https://laravel-env-setting-demo.on-forge.com)
 
 A real Laravel application with worked examples: settings classes, per-environment values, local overrides, and the Artisan commands in action. The fastest way to understand the package before installing it.
@@ -475,7 +477,7 @@ Please review [our security policy](../../security/policy) on how to report secu
 
 ## Credits
 
-- [Hamed Panjeh](https://github.com/hpwebdeveloper)
+- [Hamed Panjeh](https://hpweb.dev) — [github.com/hpwebdeveloper](https://github.com/hpwebdeveloper)
 
 ## License
 
