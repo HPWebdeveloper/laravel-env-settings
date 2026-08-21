@@ -2,7 +2,7 @@
 
 <sub>by [Hamed Panjeh](https://hpweb.dev) · [github](https://github.com/hpwebdeveloper)</sub>
 
-### 🚀 [**See how this package works in practice — try the live demo**](https://laravel-env-setting-demo.on-forge.com)
+### 🚀 [**See how this package works in practice — try the live demo**](https://laravel-env-settings.hpweb.dev)
 
 A real Laravel application with worked examples: settings classes, per-environment values, local overrides, and the Artisan commands in action. The fastest way to understand the package before installing it.
 
@@ -61,7 +61,7 @@ php artisan vendor:publish --tag="env-settings-config"
 ```
 
 > [!TIP]
-> 📘 **[Follow the step-by-step setup guide on the demo →](https://laravel-env-setting-demo.on-forge.com/getting-started)**
+> 📘 **[Follow the step-by-step setup guide on the demo →](https://laravel-env-settings.hpweb.dev/getting-started)**
 > The same installation walked through in a real application, with the generated files shown at each step.
 
 ## Quick Start
@@ -147,7 +147,7 @@ app(AuthSettings::class)->timeout;   // 10 in production, 30 in development
 That's it. The correct environment is resolved automatically.
 
 > [!TIP]
-> ▶️ **[Try it yourself in the browser →](https://laravel-env-setting-demo.on-forge.com/try-it)**
+> ▶️ **[Try it yourself in the browser →](https://laravel-env-settings.hpweb.dev/try-it)**
 > Switch environments and watch the resolved values change, without installing anything.
 
 ## How It Works
@@ -162,7 +162,7 @@ Each settings class defines one static factory per environment. When the package
 Resolution uses `app()->environment()` and `config()` — never `env()` — so it is fully compatible with `php artisan config:cache`.
 
 > [!TIP]
-> 🔎 **[See this resolution happening live on the demo →](https://laravel-env-setting-demo.on-forge.com)**
+> 🔎 **[See this resolution happening live on the demo →](https://laravel-env-settings.hpweb.dev)**
 > The demo prints the current `APP_ENV`, the method it maps to, and the resulting instance.
 
 **Required methods** — `development()` and `production()` are abstract, so every settings class must define both.
