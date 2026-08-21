@@ -1,5 +1,7 @@
 # Laravel Env Settings
 
+<img width="978" height="632" alt="Image" src="https://github.com/user-attachments/assets/06bb850c-ebf1-49fb-87e0-337a7b7bcd71" />
+
 <sub>by [Hamed Panjeh](https://hpweb.dev) · [github](https://github.com/hpwebdeveloper)</sub>
 
 ### 🚀 [**See how this package works in practice — try the live demo**](https://laravel-env-settings.hpweb.dev)
