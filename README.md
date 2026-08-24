@@ -1,8 +1,8 @@
 # Laravel Env Settings
 
-<img width="882" height="924" alt="Image" src="https://github.com/user-attachments/assets/92dec5a7-40df-4a0f-840c-a813ba0af5f6" />
+<a href="https://laravel-env-settings.hpweb.dev"><img width="882" height="924" alt="Laravel Env Settings demo — resolved settings for the current environment" src="https://github.com/user-attachments/assets/92dec5a7-40df-4a0f-840c-a813ba0af5f6" /></a>
 
-<img width="978" height="632" alt="Image" src="https://github.com/user-attachments/assets/06bb850c-ebf1-49fb-87e0-337a7b7bcd71" />
+<a href="https://laravel-env-settings.hpweb.dev"><img width="978" height="632" alt="Laravel Env Settings demo — comparing values across environments" src="https://github.com/user-attachments/assets/06bb850c-ebf1-49fb-87e0-337a7b7bcd71" /></a>
 
 <sub>by [Hamed Panjeh](https://hpweb.dev/about)</sub>
 
