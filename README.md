@@ -217,6 +217,71 @@ This is the fallback only — an explicit `--namespace`, or a namespace derived 
 
 Once an application has several settings classes, reaching for each one separately gets noisy. A root settings class solves that: its properties are other settings classes, so the whole configuration tree hangs off a single entry point.
 
+### Quick start: two classes
+
+Take the `AuthSettings` from the Quick Start and a `PaymentSettings` beside it:
+
+```php
+class PaymentSettings extends EnvironmentSettings
+{
+    public function __construct(
+        public string $mode,
+        public string $currency,
+    ) {}
+
+    public static function development(): static
+    {
+        return new static(mode: 'test', currency: 'EUR');
+    }
+
+    public static function production(): static
+    {
+        return new static(mode: 'live', currency: 'EUR');
+    }
+}
+```
+
+Group them under one root:
+
+```php
+class AppSettings extends EnvironmentSettings
+{
+    public function __construct(
+        public AuthSettings $auth,
+        public PaymentSettings $payment,
+    ) {}
+
+    public static function development(): static
+    {
+        return new static(
+            auth: AuthSettings::development(),
+            payment: PaymentSettings::development(),
+        );
+    }
+
+    public static function production(): static
+    {
+        return new static(
+            auth: AuthSettings::production(),
+            payment: PaymentSettings::production(),
+        );
+    }
+}
+```
+
+Register `AppSettings` and read either branch from one place:
+
+```php
+envSettings(AppSettings::class)->auth->domain;    // 'auth.example.com' in production
+envSettings(AppSettings::class)->payment->mode;   // 'live' in production
+```
+
+That is the entire pattern. The rest of this section covers what it buys you.
+
+### A wider tree
+
+The same shape scales to as many classes as you like:
+
 ```php
 class AppSettings extends EnvironmentSettings
 {
