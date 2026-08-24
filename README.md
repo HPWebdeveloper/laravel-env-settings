@@ -12,6 +12,40 @@ A real Laravel application with worked examples: settings classes, per-environme
 
 ---
 
+## Contents
+
+- [AI Assistants](#ai-assistants)
+- [This package is for you if…](#this-package-is-for-you-if)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+  - [1. Generate a settings class](#1-generate-a-settings-class)
+  - [2. Register it](#2-register-it)
+  - [3. Use it anywhere](#3-use-it-anywhere)
+- [How It Works](#how-it-works)
+  - [Environment map](#environment-map)
+  - [Where generated classes live](#where-generated-classes-live)
+- [Composing Settings into a Root Object](#composing-settings-into-a-root-object)
+  - [Quick start: two classes](#quick-start-two-classes)
+  - [A wider tree](#a-wider-tree)
+  - [Exporting the whole tree](#exporting-the-whole-tree)
+- [Local Development Overrides](#local-development-overrides)
+  - [Configuring the override location](#configuring-the-override-location)
+- [Artisan Commands](#artisan-commands)
+  - [`env-settings:make`](#env-settingsmake)
+  - [`env-settings:show`](#env-settingsshow)
+  - [`env-settings:diff`](#env-settingsdiff)
+- [Testing](#testing)
+- [Example: AI/LLM Settings](#example-aillm-settings)
+- [FAQ](#faq)
+- [Changelog](#changelog)
+- [Contributing](#contributing)
+- [Security](#security)
+- [Credits](#credits)
+- [License](#license)
+
+---
+
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/hpwebdeveloper/laravel-env-settings.svg?style=flat-square)](https://packagist.org/packages/hpwebdeveloper/laravel-env-settings)
 [![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/HPWebdeveloper/laravel-env-settings/ci.yml?branch=main&label=tests&style=flat-square)](https://github.com/HPWebdeveloper/laravel-env-settings/actions?query=workflow%3ACI+branch%3Amain)
 [![Total Downloads](https://img.shields.io/packagist/dt/hpwebdeveloper/laravel-env-settings.svg?style=flat-square)](https://packagist.org/packages/hpwebdeveloper/laravel-env-settings)
