@@ -213,22 +213,22 @@ If `APP_ENV` matches no key, `fallback_environment` is used (default: `developme
 
 This is the fallback only — an explicit `--namespace`, or a namespace derived from `--path`, takes precedence. See [`env-settings:make`](#env-settingsmake).
 
-## Composing Settings
+## Composing Settings into a Root Object
 
-For applications with many settings classes, compose them into a root object:
+Once an application has several settings classes, reaching for each one separately gets noisy. A root settings class solves that: its properties are other settings classes, so the whole configuration tree hangs off a single entry point.
 
 ```php
 class AppSettings extends EnvironmentSettings
 {
     public function __construct(
-        public AuthSettings $auth,
+        public AiSettings $ai,
         public PaymentSettings $payment,
     ) {}
 
     public static function development(): static
     {
         return new static(
-            auth: AuthSettings::development(),
+            ai: AiSettings::development(),
             payment: PaymentSettings::development(),
         );
     }
@@ -236,17 +236,59 @@ class AppSettings extends EnvironmentSettings
     public static function production(): static
     {
         return new static(
-            auth: AuthSettings::production(),
+            ai: AiSettings::production(),
             payment: PaymentSettings::production(),
         );
     }
 }
 ```
 
+**Nothing here is automatic.** The package resolves `AppSettings` for the current environment — from there, each factory on the root calls the matching factory on every sub-setting: `production()` calls `AiSettings::production()`, `development()` calls `AiSettings::development()`. That wiring is ordinary code you write and control. An empty constructor will not populate itself.
+
+Read any value from one place:
+
 ```php
-envSettings(AppSettings::class)->auth->domain;
+envSettings(AppSettings::class)->ai->text_model;
 envSettings(AppSettings::class)->payment->mode;
 ```
+
+Register only the root:
+
+```php
+'register' => [
+    \App\Settings\AppSettings::class,
+],
+```
+
+Sub-settings are plain instances built by the factory, so they need no registration of their own. Register one individually only if you also want to inject it directly.
+
+### Exporting the whole tree
+
+`toArray()` expands nested settings recursively, so the composed tree serialises as-is:
+
+```php
+return response()->json(envSettings(AppSettings::class)->toArray());
+```
+
+```json
+{
+    "ai": {
+        "provider": "openai",
+        "text_model": "gpt-4o",
+        "embeddings_model": "text-embedding-3-large",
+        "max_tokens": 8000,
+        "temperature": 0.2
+    },
+    "payment": {
+        "mode": "live",
+        "currency": "USD",
+        "retry_attempts": 5,
+        "webhook_url": "https://app.example.com/webhooks/payments"
+    }
+}
+```
+
+Handy for a debug endpoint, a health-check payload, or handing the resolved configuration to a frontend. Nesting is not limited to one level — a sub-setting can compose children of its own in exactly the same way.
 
 ## Local Development Overrides
 
