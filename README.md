@@ -70,7 +70,21 @@ envSettings(PaymentSettings::class)->mode    // visible in git, reviewable in PR
 
 ## AI Assistants
 
-This package ships a [Laravel Boost](https://laravel.com/docs/boost) skill. If your project has both this package and `laravel/boost` installed, running `php artisan boost:install` offers to install it, teaching Boost-aware AI agents the package's conventions — including that secrets must never be placed in a settings class.
+If your team uses AI coding agents, a published **agent skill** teaches Claude Code, Cursor, Codex and others how to work with this package — generating and registering settings classes, reading them, how overrides and testing work, and the rule that matters most: secrets must never be placed in a settings class.
+
+It is listed in the Laravel skills registry at [skills.laravel.cloud](https://skills.laravel.cloud) and installs either way:
+
+```bash
+# Skills CLI — Claude Code, Cursor, and friends
+npx skills add HPWebdeveloper/laravel-env-settings-skills
+
+# Or through Laravel Boost
+php artisan boost:add-skill HPWebdeveloper/laravel-env-settings-skills
+```
+
+Because the skill stands alone, your agent can learn the package *before* it is in your project — including how to install it.
+
+The package also ships the same guidance as a bundled [Laravel Boost](https://laravel.com/docs/boost) skill, so `php artisan boost:install` offers it automatically once the package is installed.
 
 ## This package is for you if…
 
