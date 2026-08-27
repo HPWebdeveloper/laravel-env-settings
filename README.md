@@ -10,6 +10,10 @@
 
 A real Laravel application with worked examples: settings classes, per-environment values, local overrides, and the Artisan commands in action. The fastest way to understand the package before installing it.
 
+### 💡 [**Why this exists — the problem it solves**](https://hpweb.dev/learning/laravel/laravel-env-settings#1-the-problem)
+
+The reasoning behind the package: what goes wrong when non-secret configuration lives in `.env`, and why `env()` stops working once you cache your config.
+
 ---
 
 ## Contents
