@@ -221,6 +221,12 @@ class DiffEnvSettingsCommand extends Command
         foreach ($reflection->getMethods(ReflectionMethod::IS_PUBLIC | ReflectionMethod::IS_STATIC) as $method) {
             $name = $method->getName();
 
+            // getMethods() filters with OR, so public instance methods and
+            // private static ones come through too; a factory must be both.
+            if (! $method->isPublic() || ! $method->isStatic()) {
+                continue;
+            }
+
             if ($method->isAbstract() || in_array($name, $skip, true) || str_starts_with($name, '__')) {
                 continue;
             }
