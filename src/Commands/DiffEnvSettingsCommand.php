@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace HpWebDeveloper\LaravelEnvSettings\Commands;
 
 use HpWebDeveloper\LaravelEnvSettings\Commands\Concerns\InteractsWithConsoleInput;
+use HpWebDeveloper\LaravelEnvSettings\Commands\Concerns\MasksSensitiveValues;
 use HpWebDeveloper\LaravelEnvSettings\EnvironmentSettings;
 use Illuminate\Console\Command;
 use ReflectionClass;
@@ -19,6 +20,7 @@ use function Laravel\Prompts\warning;
 class DiffEnvSettingsCommand extends Command
 {
     use InteractsWithConsoleInput;
+    use MasksSensitiveValues;
 
     protected $signature = 'env-settings:diff
         {class? : Fully qualified class name of the settings class}
@@ -93,10 +95,17 @@ class DiffEnvSettingsCommand extends Command
 
         foreach ($reflection->getProperties(ReflectionProperty::IS_PUBLIC) as $prop) {
             $name = $prop->getName();
-            $val1 = $this->formatValue($prop->getValue($instance1));
-            $val2 = $this->formatValue($prop->getValue($instance2));
+            $raw1 = $prop->getValue($instance1);
+            $raw2 = $prop->getValue($instance2);
+            $val1 = $this->formatValue($raw1);
+            $val2 = $this->formatValue($raw2);
 
+            // Compare the real values, then mask for display, so a sensitive
+            // property is still reported as differing without being revealed.
             $diff = $val1 !== $val2 ? ' *' : '';
+
+            $val1 = $this->maskIfSensitive($prop, $raw1, $val1);
+            $val2 = $this->maskIfSensitive($prop, $raw2, $val2);
 
             if ($diff) {
                 $hasDiff = true;

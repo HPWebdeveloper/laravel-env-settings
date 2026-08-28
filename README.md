@@ -524,7 +524,24 @@ php artisan env-settings:show "App\Settings\AuthSettings"    # one class
 +--------------+--------+----------------------------------+
 ```
 
-Properties whose names contain `key`, `secret`, `password`, or `token` are masked with `********`. This is a safety net, not a feature — secrets belong in `.env`, not in a settings class.
+#### Masking values
+
+Mark a property `#[Sensitive]` and both `env-settings:show` and `env-settings:diff` print `********` instead of its value:
+
+```php
+use HpWebDeveloper\LaravelEnvSettings\Attributes\Sensitive;
+
+public function __construct(
+    public string $webhook_url,
+    #[Sensitive] public string $passphrase,
+) {}
+```
+
+Unmarked properties whose names contain `key`, `secret`, `password`, or `token` are masked too, so settings written before the attribute existed stay covered. That fallback is a guess in both directions — it hides `monkey_api_url` needlessly and misses `passphrase`, `credentials` and `bearer` — so mark the property when it matters.
+
+Masking affects display only. `toArray()` still returns real values, and `env-settings:diff` compares real values, so a masked property is still flagged with `*` when it differs between environments.
+
+This is a safety net, not a feature — secrets belong in `.env`, not in a settings class.
 
 ### `env-settings:diff`
 

@@ -205,6 +205,41 @@ Generated automatically by `bin/generate-test-inventory`. Edit tests to update t
 - test env settings helper works with nested root
   - Assertions: assertSame
 
+## tests/Feature/SensitiveMaskingTest.php
+
+- test show masks a marked property the name heuristic would miss
+  - Assertions: assertStringNotContainsString, assertStringContainsString
+
+- test diff masks marked properties
+  - Assertions: assertStringNotContainsString
+
+- test diff still reports a masked property as differing
+  - Assertions: assertMatchesRegularExpression, assertStringContainsString
+
+- test unmarked property matching the name heuristic is still masked
+  - Assertions: assertStringNotContainsString
+
+- test diff masks unmarked properties matching the heuristic
+  - Assertions: assertStringNotContainsString
+
+- test ordinary values are not masked
+  - Assertions: assertStringContainsString
+
+- test an empty marked property is not masked
+  - Assertions: assertMatchesRegularExpression
+
+- test numeric properties matching the name heuristic are not masked
+  - Assertions: assertStringContainsString
+
+- test a marked non string property is masked
+  - Assertions: assertStringNotContainsString
+
+- test numeric heuristic properties are not masked in diff
+  - Assertions: assertStringContainsString
+
+- test to array returns real values
+  - Assertions: assertSame
+
 ## tests/Feature/ServiceProviderTest.php
 
 - test config is merged
