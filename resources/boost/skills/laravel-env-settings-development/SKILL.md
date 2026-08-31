@@ -1,6 +1,6 @@
 ---
 name: laravel-env-settings-development
-description: Create and use typed, environment-aware settings classes with hpwebdeveloper/laravel-env-settings — generating classes, registering them, reading values, local overrides, and keeping non-secret configuration out of .env.
+description: Create and use typed, environment-aware settings classes with hpwebdeveloper/laravel-env-settings — generating classes, registering them, reading values, declaring environments with #[Environment], masking console output with #[Sensitive], local overrides, and keeping non-secret configuration out of .env.
 ---
 
 # Laravel Env Settings Development
@@ -13,6 +13,8 @@ Use this skill when:
 - Creating, registering, or reading a settings class from this package
 - Deciding whether a value belongs in `.env` or in a settings class
 - Setting up per-developer local overrides for settings
+- Resolving a non-standard `APP_ENV` (`qa`, `uat`, `demo`) to a factory method
+- Hiding a property's value in `env-settings:show` / `env-settings:diff` output
 
 ## Core Concepts
 
@@ -95,7 +97,34 @@ Anti-pattern: `new AuthSettings(...)` or calling `AuthSettings::production()` di
 
 ## Environment resolution
 
-`APP_ENV` → `environment_map` → static method. Defaults: `local`/`dev`/`develop` → `development()`, `staging`/`stage` → `staging()`, `production`/`prod` → `production()`, `testing`/`test` → `testing()`. An unmapped `APP_ENV` falls back to `fallback_environment` (default `development`).
+Resolution order for the current `APP_ENV`:
+
+1. A factory marked `#[Environment]` for that `APP_ENV`
+2. `environment_map`, then the raw `APP_ENV` value tried as a method name
+3. `fallback_environment` (default `development`), then `development()`
+
+Default map: `local`/`dev`/`develop` → `development()`, `staging`/`stage` → `staging()`, `production`/`prod` → `production()`, `testing`/`test` → `testing()`.
+
+### Declaring environments on the class
+
+`environment_map` lives in the application's config, so reading a settings class does not tell you which environments reach which method — and the same class can resolve differently in two applications. Mark the factory instead and the answer sits beside the code:
+
+```php
+use HpWebDeveloper\LaravelEnvSettings\Attributes\Environment;
+
+#[Environment('production', 'prod')]
+#[Environment('demo')]        // repeatable: another environment on the same values
+public static function production(): static { ... }
+
+#[Environment('qa', 'uat')]   // the method name need not match the environment
+public static function qualityAssurance(): static { ... }
+```
+
+`APP_ENV=qa`, `uat` or `demo` now resolve with no config edit. Reach for this when the class ships in a package or is shared across applications, or when `APP_ENV` uses names outside the default map — asking every consumer to edit their `environment_map` is not practical.
+
+Environment names are matched **case-sensitively**, as `APP_ENV` is. Where two methods claim the same environment, the first declared wins. Attributes take precedence over `environment_map`, so a class that states which environments it serves is never silently redirected by a map it cannot see; classes without attributes behave exactly as before.
+
+Attribute mappings are inherited down the class hierarchy, so a local override that redeclares a marked factory keeps its mapping — the override's own values are still the ones used.
 
 ## Local developer overrides
 
@@ -120,7 +149,24 @@ php artisan env-settings:diff "App\Settings\AuthSettings" development production
 php artisan env-settings:diff                                # prompts for class and environments
 ```
 
-`env-settings:show` masks properties whose names contain `key`, `secret`, `password`, or `token` — but do not rely on this: those values should not be in a settings class at all.
+### Masking values
+
+Mark a property `#[Sensitive]` and both `env-settings:show` and `env-settings:diff` print `********` instead of its value:
+
+```php
+use HpWebDeveloper\LaravelEnvSettings\Attributes\Sensitive;
+
+public function __construct(
+    public string $webhook_url,
+    #[Sensitive] public string $passphrase,
+) {}
+```
+
+A marked property is masked whatever it holds. Unmarked **string** properties whose names contain `key`, `secret`, `password`, or `token` are masked too, so classes written before the attribute existed stay covered — but that fallback guesses in both directions (it hides `monkey_api_url`, and misses `passphrase`, `credentials`, `bearer`), so mark the property when it matters. Empty strings are never masked.
+
+Masking affects display only: `toArray()` still returns real values, and `env-settings:diff` compares real values, so a masked property is still flagged with `*` when it differs between environments.
+
+Anti-pattern: treating `#[Sensitive]` as permission to put a secret in a settings class. It is a safety net for console output, not storage — the value is still committed to git. Secrets stay in `.env`.
 
 ## Testing
 
