@@ -129,6 +129,38 @@ Generated automatically by `bin/generate-test-inventory`. Edit tests to update t
 - test show displays boolean values correctly
   - Assertions: assertSame, assertStringContainsString
 
+## tests/Feature/EnvironmentAttributeTest.php
+
+- test it resolves an environment named by the attribute
+  - Assertions: assertSame
+
+- test one method can serve several environments
+  - Assertions: assertSame
+
+- test the method name need not match the environment
+  - Assertions: assertSame
+
+- test an unmarked environment still falls back
+  - Assertions: assertSame
+
+- test the attribute wins over the environment map
+  - Assertions: assertSame
+
+- test classes without attributes are unaffected
+  - Assertions: assertSame
+
+- test the environment map still applies to unmarked environments
+  - Assertions: assertSame
+
+- test a subclass inherits the mapping when it redeclares a marked method
+  - Assertions: assertSame
+
+- test a marked method that is not a usable factory is ignored
+  - Assertions: assertSame
+
+- test repeated resolution is consistent
+  - Assertions: assertSame
+
 ## tests/Feature/OverrideTest.php
 
 - test resolve uses override class when enabled

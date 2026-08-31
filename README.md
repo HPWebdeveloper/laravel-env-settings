@@ -30,6 +30,7 @@ The reasoning behind the package: what goes wrong when non-secret configuration 
   - [3. Use it anywhere](#3-use-it-anywhere)
 - [How It Works](#how-it-works)
   - [Environment map](#environment-map)
+  - [Declaring environments on the class](#declaring-environments-on-the-class)
   - [Where generated classes live](#where-generated-classes-live)
 - [Composing Settings into a Root Object](#composing-settings-into-a-root-object)
   - [Quick start: two classes](#quick-start-two-classes)
@@ -255,7 +256,33 @@ public static function staging(): static
 ],
 ```
 
-If `APP_ENV` matches no key, `fallback_environment` is used (default: `development`).
+If `APP_ENV` matches no key, the value is tried as a method name, then `fallback_environment` is used (default: `development`).
+
+### Declaring environments on the class
+
+The map above lives in the application's config, so reading a settings class does not tell you which environments reach which method — the same class can resolve differently in two applications. Mark the method instead and the answer sits beside the code:
+
+```php
+use HpWebDeveloper\LaravelEnvSettings\Attributes\Environment;
+
+#[Environment('production', 'prod')]
+#[Environment('demo')]        // a second environment sharing production values
+public static function production(): static { ... }
+
+// The method name need not match the environment.
+#[Environment('qa', 'uat')]
+public static function qualityAssurance(): static { ... }
+```
+
+`APP_ENV=demo`, `qa` or `uat` now resolve without touching `environment_map`, and one factory can serve several environments. This is useful when settings classes are shared across applications or shipped in a package, where asking every consumer to edit their config is not practical.
+
+Resolution order is:
+
+1. A method marked `#[Environment]` for the current `APP_ENV`
+2. `environment_map`, then the `APP_ENV` value used as a method name
+3. `fallback_environment`, then `development()`
+
+Attributes take precedence so a class that states which environments it serves is not silently redirected by a map it cannot see. Classes without attributes behave exactly as before.
 
 ### Where generated classes live
 
