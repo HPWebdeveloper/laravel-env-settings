@@ -22,7 +22,8 @@ class MakeEnvSettingsCommand extends Command
         {name : The name of the settings class (e.g. AuthSettings)}
         {--properties= : Comma-separated properties with types (e.g. domain:string,timeout:int,enabled:bool)}
         {--path= : Custom directory to create the file in (default: app/Settings)}
-        {--namespace= : Explicit PHP namespace for the class (default: derived from --path, else config env-settings.class_namespace)}';
+        {--namespace= : Explicit PHP namespace for the class (default: derived from --path, else config env-settings.class_namespace)}
+        {--sensitive= : Comma-separated property names to mark #[Sensitive] (each must appear in --properties)}';
 
     protected $description = 'Create a new environment settings class';
 
@@ -40,13 +41,19 @@ class MakeEnvSettingsCommand extends Command
         }
 
         $properties = $this->parseProperties($this->stringOption('properties'));
+        $sensitive = $this->parseSensitive($this->stringOption('sensitive'), $properties);
+
+        if ($sensitive === null) {
+            return self::FAILURE;
+        }
+
         $namespace = $this->resolveNamespace($path);
 
         if ($namespace === null) {
             return self::FAILURE;
         }
 
-        $stub = $this->buildStub($namespace, $name, $properties);
+        $stub = $this->buildStub($namespace, $name, $properties, $sensitive);
 
         $files->ensureDirectoryExists(dirname($filePath));
         $files->put($filePath, $stub);
@@ -80,6 +87,35 @@ class MakeEnvSettingsCommand extends Command
         }
 
         return $properties;
+    }
+
+    /**
+     * Parse and validate the --sensitive option.
+     *
+     * Every name must match a generated property. A typo that silently marked
+     * nothing would leave a value unmasked while the developer believes
+     * otherwise, so unknown names fail the command instead.
+     *
+     * @param  array<int, array{name: string, type: string}>  $properties
+     * @return list<string>|null null on invalid input
+     */
+    private function parseSensitive(?string $raw, array $properties): ?array
+    {
+        if ($raw === null || trim($raw) === '') {
+            return [];
+        }
+
+        $names = array_values(array_filter(array_map('trim', explode(',', $raw))));
+        $known = array_column($properties, 'name');
+        $unknown = array_diff($names, $known);
+
+        if ($unknown !== []) {
+            error('Unknown property in --sensitive: '.implode(', ', $unknown).'. Known properties: '.implode(', ', $known).'.');
+
+            return null;
+        }
+
+        return $names;
     }
 
     /**
@@ -405,8 +441,9 @@ class MakeEnvSettingsCommand extends Command
 
     /**
      * @param  array<int, array{name: string, type: string}>  $properties
+     * @param  list<string>  $sensitive
      */
-    private function buildStub(string $namespace, string $class, array $properties): string
+    private function buildStub(string $namespace, string $class, array $properties, array $sensitive = []): string
     {
         $stubPath = __DIR__.'/../../stubs/env-settings.stub';
         $stub = file_get_contents($stubPath);
@@ -420,15 +457,20 @@ class MakeEnvSettingsCommand extends Command
         $prodValues = [];
 
         foreach ($properties as $prop) {
-            $propsLines[] = "        public {$prop['type']} \${$prop['name']},";
+            $attribute = in_array($prop['name'], $sensitive, true) ? '#[Sensitive] ' : '';
+            $propsLines[] = "        {$attribute}public {$prop['type']} \${$prop['name']},";
             $default = $this->defaultForType($prop['type']);
             $devValues[] = "            {$prop['name']}: {$default}, // TODO: set development value";
             $prodValues[] = "            {$prop['name']}: {$default}, // TODO: set production value";
         }
 
+        $imports = $sensitive === []
+            ? 'use HpWebDeveloper\\LaravelEnvSettings\\EnvironmentSettings;'
+            : "use HpWebDeveloper\\LaravelEnvSettings\\Attributes\\Sensitive;\nuse HpWebDeveloper\\LaravelEnvSettings\\EnvironmentSettings;";
+
         return str_replace(
-            ['{{ namespace }}', '{{ class }}', '{{ properties }}', '{{ developmentValues }}', '{{ productionValues }}'],
-            [$namespace, $class, implode("\n", $propsLines), implode("\n", $devValues), implode("\n", $prodValues)],
+            ['{{ imports }}', '{{ namespace }}', '{{ class }}', '{{ properties }}', '{{ developmentValues }}', '{{ productionValues }}'],
+            [$imports, $namespace, $class, implode("\n", $propsLines), implode("\n", $devValues), implode("\n", $prodValues)],
             $stub,
         );
     }

@@ -169,6 +169,70 @@ class MakeEnvSettingsCommandTest extends TestCase
     }
 
     // -------------------------------------------------------------------
+    // --sensitive
+    // -------------------------------------------------------------------
+
+    public function test_sensitive_option_marks_the_named_properties(): void
+    {
+        $this->artisanCommand('env-settings:make', [
+            'name' => 'VaultSettings',
+            '--properties' => 'endpoint:string,passphrase:string,timeout:int',
+            '--sensitive' => 'passphrase',
+            '--path' => $this->outputPath,
+        ])->assertSuccessful();
+
+        $content = $this->readFile($this->outputPath.'/VaultSettings.php');
+
+        $this->assertStringContainsString('#[Sensitive] public string $passphrase,', $content);
+        $this->assertStringContainsString('use HpWebDeveloper\LaravelEnvSettings\Attributes\Sensitive;', $content);
+        // Only the named property is marked.
+        $this->assertStringContainsString("\n        public string \$endpoint,", $content);
+        $this->assertStringContainsString("\n        public int \$timeout,", $content);
+    }
+
+    public function test_sensitive_import_is_absent_when_the_option_is_not_used(): void
+    {
+        $this->artisanCommand('env-settings:make', [
+            'name' => 'PlainSettings',
+            '--properties' => 'endpoint:string',
+            '--path' => $this->outputPath,
+        ])->assertSuccessful();
+
+        $content = $this->readFile($this->outputPath.'/PlainSettings.php');
+
+        $this->assertStringNotContainsString('Sensitive', $content);
+    }
+
+    public function test_sensitive_option_rejects_unknown_property_names(): void
+    {
+        // A typo silently marking nothing would leave the value unmasked while
+        // the developer believes otherwise, so the command fails instead.
+        $this->artisanCommand('env-settings:make', [
+            'name' => 'TypoSettings',
+            '--properties' => 'passphrase:string',
+            '--sensitive' => 'pasphrase',
+            '--path' => $this->outputPath,
+        ])->expectsOutputToContain('Unknown property in --sensitive')
+            ->assertFailed();
+
+        $this->assertFileDoesNotExist($this->outputPath.'/TypoSettings.php');
+    }
+
+    public function test_a_generated_sensitive_class_parses_as_valid_php(): void
+    {
+        $this->artisanCommand('env-settings:make', [
+            'name' => 'LintSettings',
+            '--properties' => 'token:string,api_key:string',
+            '--sensitive' => 'token,api_key',
+            '--path' => $this->outputPath,
+        ])->assertSuccessful();
+
+        $lint = shell_exec('php -l '.escapeshellarg($this->outputPath.'/LintSettings.php').' 2>&1');
+
+        $this->assertStringContainsString('No syntax errors', (string) $lint);
+    }
+
+    // -------------------------------------------------------------------
     // Namespace resolution
     // -------------------------------------------------------------------
 

@@ -38,6 +38,7 @@ Options:
 
 - `--path=app/Modules/Billing/Settings` — the namespace is derived from the path (`App\Modules\Billing\Settings`)
 - `--namespace="Acme\Billing\Settings"` — required when `--path` is outside `app/`, otherwise the class will not autoload
+- `--sensitive=passphrase,api_key` — marks the named properties `#[Sensitive]` in the generated class; unknown names fail the command
 
 ## Class anatomy
 

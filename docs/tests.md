@@ -65,6 +65,18 @@ Generated automatically by `bin/generate-test-inventory`. Edit tests to update t
 - test generated file has correct use statement
   - Assertions: assertStringContainsString
 
+- test sensitive option marks the named properties
+  - Assertions: assertStringContainsString
+
+- test sensitive import is absent when the option is not used
+  - Assertions: assertStringNotContainsString
+
+- test sensitive option rejects unknown property names
+  - Assertions: assertFileDoesNotExist
+
+- test a generated sensitive class parses as valid php
+  - Assertions: assertStringContainsString
+
 - test it uses the configured namespace when no path is given
   - Assertions: assertSame
 

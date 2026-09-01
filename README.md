@@ -514,7 +514,13 @@ php artisan env-settings:make NotificationSettings --path=app/Settings/Infrastru
 # Explicit namespace, for directories outside the application root
 php artisan env-settings:make NotificationSettings \
     --path=packages/billing/src/Settings --namespace="Acme\\Billing\\Settings"
+
+# Mark properties #[Sensitive] as they are generated
+php artisan env-settings:make VaultSettings \
+    --properties="endpoint:string,passphrase:string" --sensitive=passphrase
 ```
+
+`--sensitive` takes a comma-separated list of property names; each gets the `#[Sensitive]` attribute (and the import is added). A name that matches no property fails the command rather than silently marking nothing.
 
 **How the namespace is chosen.** A generated class only autoloads if its namespace matches where the file was written, so the namespace is resolved in this order:
 
