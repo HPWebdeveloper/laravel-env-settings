@@ -69,21 +69,9 @@ envSettings(PaymentSettings::class)->mode    // visible in git, reviewable in PR
 
 ## This package is for you if…
 
-- You believe **`.env` is for secrets** — not for URLs, model names, and timeouts that have no reason to hide outside version control.
-- Your `.env` files run to dozens of lines that **aren't secret at all**, and nobody can review a change to them.
-- You want **fully typed settings** with IDE autocomplete, so `envSettings(AuthSettings::class)->domain` replaces stringly-typed `config()` lookups.
-- You've been burned by `env()` returning `null` in production because **`env()` stops working after `config:cache`**.
-- You want a build to **fail before deploying a half-finished settings class** — `env-settings:check` exits non-zero when a factory was left at its generated placeholders.
-- A value has a **fixed set of options** (`live` / `sandbox`), and you want a typo to be a parse error instead of a 3 a.m. incident — type the property as an enum.
-- Your `APP_ENV` is `qa`, `uat` or `demo`, and you want the class itself to **declare which environments it serves** with `#[Environment]`, without every consumer editing their config.
-- Each developer needs **their own local values** — a different domain, a longer timeout — without touching committed code or their teammates' setup.
-- You want to **see what production actually uses** without SSH-ing anywhere: `env-settings:show` prints the resolved values, `env-settings:diff` compares two environments side by side.
-- You have **many settings classes** and want them composed into one root object, readable as `envSettings(AppSettings::class)->payment->mode` and exportable with `toArray()`.
-- You paste console output into tickets and chat, and want a property **masked in that output** with `#[Sensitive]`.
-- You run **AI/LLM workloads** where providers, models and token limits differ per environment and change often — every change reviewable in a pull request.
+### 🧭 [**Is this package for you? — 15 reasons, each one a before and an after**](https://laravel-env-settings.hpweb.dev/why)
 
-> **Note**
-> This is **not** a database-backed settings manager (use [spatie/laravel-settings](https://github.com/spatie/laravel-settings)) and **not** a feature flag system (use [Laravel Pennant](https://laravel.com/docs/pennant)). It is a typed configuration layer for non-secret values that differ between environments.
+A page dedicated to exactly this question. Tick the problems you recognise — what belongs in `.env`, types instead of strings, staying correct at runtime, working with other people, and where this fits alongside other packages. Every reason shows the shape of the problem beside what replaces it, so it reads as a diagnosis rather than a feature list.
 
 ## AI Assistants
 
