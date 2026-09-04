@@ -1,6 +1,6 @@
 ---
 name: laravel-env-settings-development
-description: Create and use typed, environment-aware settings classes with hpwebdeveloper/laravel-env-settings — generating classes, registering them, reading values, declaring environments with #[Environment], masking console output with #[Sensitive], local overrides, and keeping non-secret configuration out of .env.
+description: Create and use typed, environment-aware settings classes with hpwebdeveloper/laravel-env-settings — generating classes, registering them, reading values, declaring environments with #[Environment], masking console output with #[Sensitive], local overrides, verifying completeness in CI with env-settings:check, and keeping non-secret configuration out of .env.
 ---
 
 # Laravel Env Settings Development
@@ -15,6 +15,7 @@ Use this skill when:
 - Setting up per-developer local overrides for settings
 - Resolving a non-standard `APP_ENV` (`qa`, `uat`, `demo`) to a factory method
 - Hiding a property's value in `env-settings:show` / `env-settings:diff` output
+- Adding a CI step that fails when a settings class was never finished for an environment
 
 ## Core Concepts
 
@@ -148,6 +149,30 @@ php artisan env-settings:show                                # all registered cl
 php artisan env-settings:show "App\Settings\AuthSettings"    # one class
 php artisan env-settings:diff "App\Settings\AuthSettings" development production
 php artisan env-settings:diff                                # prompts for class and environments
+php artisan env-settings:check --env=production              # fails if anything is unfinished
+```
+
+### Verifying settings before they ship
+
+`env-settings:check` reports properties left at their generated placeholder and exits non-zero, so it works as a gate rather than a report.
+
+**Where it belongs: in CI, on the branch that deploys — alongside the test suite, not in a deploy hook.** It is a static check that resolves the classes locally, so it needs no network and no production credentials, and a failure caught in the build is a failure that never reaches a server:
+
+```yaml
+- name: Check production settings are complete
+  run: php artisan env-settings:check --env=production
+```
+
+A value counts as incomplete when it equals its placeholder (`''`, `0`, `0.0`, `false`, `[]`, `null`) **and another environment supplies a real value** — the signature of one factory being filled in while another was forgotten. A value empty in every environment is treated as deliberate and never reported. Any string containing `TODO` is always reported.
+
+When an empty value is intentional, mark the property so the check stays quiet:
+
+```php
+use HpWebDeveloper\LaravelEnvSettings\Attributes\AllowEmpty;
+
+public function __construct(
+    #[AllowEmpty] public string $path_prefix,
+) {}
 ```
 
 ### Masking values

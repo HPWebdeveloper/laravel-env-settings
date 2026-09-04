@@ -41,6 +41,7 @@ The reasoning behind the package: what goes wrong when non-secret configuration 
   - [Configuring the override location](#configuring-the-override-location)
 - [Artisan Commands](#artisan-commands)
   - [`env-settings:make`](#env-settingsmake)
+  - [`env-settings:check`](#env-settingscheck)
   - [`env-settings:show`](#env-settingsshow)
   - [`env-settings:diff`](#env-settingsdiff)
 - [Testing](#testing)
@@ -617,6 +618,46 @@ php artisan env-settings:make VaultSettings \
 | `--path=packages/billing/src --namespace="Acme\Billing"`    | `Acme\Billing`                |
 
 A path outside the application root has no PSR-4 mapping the command can read, so it falls back to the configured default and warns you. Pass `--namespace` in that case.
+
+### `env-settings:check`
+
+Reports settings left at their generated placeholder, so a factory nobody finished cannot reach production:
+
+```bash
+php artisan env-settings:check --env=production   # a specific environment
+php artisan env-settings:check                    # the current APP_ENV
+php artisan env-settings:check "App\Settings\AuthSettings"
+```
+
+```
+✗ App\Settings\AuthSettings
+    domain                   empty string, but set in development()
+    timeout                  0, but set in development()
+    webhook_url              still contains "TODO"
+
+1 of 3 classes incomplete for [production]: 3 values to fill in.
+```
+
+**Run it in CI, on the branch that deploys.** It exits non-zero when anything is incomplete, which makes it a gate rather than a report:
+
+```yaml
+- name: Check production settings are complete
+  run: php artisan env-settings:check --env=production
+```
+
+It is a static check — it resolves your classes, touches no network and needs no production credentials — so it belongs in the build, alongside your tests, not in a deploy hook where a failure is already too late.
+
+**What counts as incomplete.** A value equal to its generated placeholder (`''`, `0`, `0.0`, `false`, `[]`, `null`) **when another environment supplies a real one** — the shape of a class where one factory was filled in and another forgotten. A value that is empty in *every* environment is deliberate and never reported, so `retry_attempts: 0` everywhere stays quiet. Any string containing `TODO` is always reported.
+
+Mark a property `#[AllowEmpty]` when its empty value is intentional:
+
+```php
+use HpWebDeveloper\LaravelEnvSettings\Attributes\AllowEmpty;
+
+public function __construct(
+    #[AllowEmpty] public string $path_prefix,
+) {}
+```
 
 ### `env-settings:show`
 

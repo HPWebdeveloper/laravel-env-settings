@@ -141,6 +141,44 @@ Generated automatically by `bin/generate-test-inventory`. Edit tests to update t
 - test show displays boolean values correctly
   - Assertions: assertSame, assertStringContainsString
 
+## tests/Feature/CheckCommandTest.php
+
+- test it fails when a factory was left at its placeholders
+  - Assertions: assertSame, assertStringContainsString
+
+- test it says which environment supplies a real value
+  - Assertions: assertStringContainsString
+
+- test it reports a todo left in the value
+  - Assertions: assertStringContainsString
+
+- test a value that is empty everywhere is not reported
+  - Assertions: assertStringNotContainsString
+
+- test an allow empty property is never reported
+  - Assertions: assertStringNotContainsString
+
+- test it passes when every class is complete
+  - Assertions: assertSame, assertStringContainsString
+
+- test the environment being checked passes when it is the filled one
+  - Assertions: assertStringNotContainsString
+
+- test it defaults to the current environment
+  - Assertions: assertSame, assertStringContainsString
+
+- test it can check a single class without registration
+  - Assertions: assertSame, assertStringContainsString
+
+- test it fails on a class that is not a settings class
+  - Assertions: assertSame, assertStringContainsString
+
+- test it warns when nothing is registered
+  - Assertions: assertSame, assertStringContainsString
+
+- test a non array register config does not crash
+  - Assertions: assertSame
+
 ## tests/Feature/EnumValuedSettingsTest.php
 
 - test an enum property resolves per environment

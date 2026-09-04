@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace HpWebDeveloper\LaravelEnvSettings\Commands;
 
 use BackedEnum;
+use HpWebDeveloper\LaravelEnvSettings\Commands\Concerns\DetectsEnvironments;
 use HpWebDeveloper\LaravelEnvSettings\Commands\Concerns\InteractsWithConsoleInput;
 use HpWebDeveloper\LaravelEnvSettings\Commands\Concerns\MasksSensitiveValues;
 use HpWebDeveloper\LaravelEnvSettings\EnvironmentSettings;
 use Illuminate\Console\Command;
 use ReflectionClass;
-use ReflectionMethod;
 use ReflectionProperty;
 use UnitEnum;
 
@@ -21,6 +21,7 @@ use function Laravel\Prompts\warning;
 
 class DiffEnvSettingsCommand extends Command
 {
+    use DetectsEnvironments;
     use InteractsWithConsoleInput;
     use MasksSensitiveValues;
 
@@ -204,50 +205,6 @@ class DiffEnvSettingsCommand extends Command
         }
 
         return $options[$selected] ?? '';
-    }
-
-    /**
-     * Return the public static environment method names defined on the class,
-     * excluding framework methods (resolve, testing, etc.).
-     *
-     * @param  class-string<EnvironmentSettings>  $class
-     * @return list<string>
-     */
-    private function detectEnvironments(string $class): array
-    {
-        $skip = ['resolve', 'staging', 'testing'];
-
-        $reflection = new ReflectionClass($class);
-        $methods = [];
-
-        foreach ($reflection->getMethods(ReflectionMethod::IS_PUBLIC | ReflectionMethod::IS_STATIC) as $method) {
-            $name = $method->getName();
-
-            // getMethods() filters with OR, so public instance methods and
-            // private static ones come through too; a factory must be both.
-            if (! $method->isPublic() || ! $method->isStatic()) {
-                continue;
-            }
-
-            if ($method->isAbstract() || in_array($name, $skip, true) || str_starts_with($name, '__')) {
-                continue;
-            }
-
-            if ($method->getDeclaringClass()->getName() === EnvironmentSettings::class) {
-                continue;
-            }
-
-            $methods[] = $name;
-        }
-
-        // Always append staging/testing if the class defines them beyond the default
-        foreach (['staging', 'testing'] as $extra) {
-            if (method_exists($class, $extra) && ! in_array($extra, $methods, true)) {
-                $methods[] = $extra;
-            }
-        }
-
-        return empty($methods) ? ['development', 'production'] : $methods;
     }
 
     private function formatValue(mixed $value): string
