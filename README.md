@@ -179,21 +179,77 @@ Supported property types: `string`, `int`, `float`, `bool`, `array`.
 
 ### Fixed-value properties
 
-When a property only ever holds one of a few values, type it as an enum. A typo becomes a parse error instead of a runtime surprise, and the valid set is documented by the type itself:
+When a property only ever holds one of a few values, type it as an enum. A typo becomes a parse error instead of a runtime surprise, and the valid set is documented by the type itself.
+
+Declare the enum once:
 
 ```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Enums;
+
 enum PaymentMode: string
 {
     case Live = 'live';
     case Sandbox = 'sandbox';
 }
+```
 
-public function __construct(
-    public PaymentMode $mode,
-) {}
+Then type the property with it and pick a case per environment:
 
-public static function development(): static { return new static(mode: PaymentMode::Sandbox); }
-public static function production(): static  { return new static(mode: PaymentMode::Live); }
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Settings;
+
+use App\Enums\PaymentMode;
+use HpWebDeveloper\LaravelEnvSettings\EnvironmentSettings;
+
+class PaymentSettings extends EnvironmentSettings
+{
+    public function __construct(
+        public PaymentMode $mode,
+        public int $retries,
+    ) {}
+
+    public static function development(): static
+    {
+        return new static(
+            mode: PaymentMode::Sandbox,
+            retries: 1,
+        );
+    }
+
+    public static function production(): static
+    {
+        return new static(
+            mode: PaymentMode::Live,
+            retries: 3,
+        );
+    }
+}
+```
+
+Reading it gives you the case itself, so calling code can branch exhaustively instead of comparing strings:
+
+```php
+envSettings(PaymentSettings::class)->mode;        // PaymentMode::Live
+envSettings(PaymentSettings::class)->mode->value; // 'live'
+
+$client = match (envSettings(PaymentSettings::class)->mode) {
+    PaymentMode::Live => $gateway->live(),
+    PaymentMode::Sandbox => $gateway->sandbox(),
+};
+```
+
+**Generating one.** `env-settings:make` takes the type name as written, so `--properties="mode:PaymentMode"` types the property correctly — but it only knows defaults for the scalar types, so it seeds both factories with `''` and does not import the enum. Add the `use` statement and replace the two `// TODO` values:
+
+```bash
+php artisan env-settings:make PaymentSettings --properties="mode:PaymentMode,retries:int"
 ```
 
 The enum defines which values are **possible**; the settings class chooses which one each environment **uses**. Keep per-environment values in the factories — an enum has no environment awareness, so configuration placed inside one is invisible to `env-settings:show`, `env-settings:diff`, masking and local overrides.
