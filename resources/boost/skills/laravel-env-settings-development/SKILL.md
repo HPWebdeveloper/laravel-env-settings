@@ -30,7 +30,7 @@ Use this skill when:
 php artisan env-settings:make AuthSettings --properties="domain:string,timeout:int,mfa_enabled:bool"
 ```
 
-Supported property types: `string`, `int`, `float`, `bool`, `array`. The generated class contains `// TODO: set development value` placeholders — always fill them in immediately.
+Supported property types: `string`, `int`, `float`, `bool`, `array`. For a property with a fixed set of valid values, type it as a PHP enum instead of `string` — a typo then fails at parse time, and the valid set is documented by the type. The enum defines which values are possible; the settings class factories choose which one each environment uses. Never store per-environment values inside the enum: they would be invisible to `show`, `diff`, masking and local overrides. `toArray()` unwraps enums (backed → value, pure → case name), so JSON output keeps working. The generated class contains `// TODO: set development value` placeholders — always fill them in immediately.
 
 The command auto-appends the class to the `register` array in `config/env-settings.php` when the config is published. If it warns instead, follow the instruction it prints.
 

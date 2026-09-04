@@ -26,6 +26,7 @@ The reasoning behind the package: what goes wrong when non-secret configuration 
 - [Installation](#installation)
 - [Quick Start](#quick-start)
   - [1. Generate a settings class](#1-generate-a-settings-class)
+  - [Fixed-value properties](#fixed-value-properties)
   - [2. Register it](#2-register-it)
   - [3. Use it anywhere](#3-use-it-anywhere)
 - [How It Works](#how-it-works)
@@ -175,6 +176,29 @@ class AuthSettings extends EnvironmentSettings
 ```
 
 Supported property types: `string`, `int`, `float`, `bool`, `array`.
+
+### Fixed-value properties
+
+When a property only ever holds one of a few values, type it as an enum. A typo becomes a parse error instead of a runtime surprise, and the valid set is documented by the type itself:
+
+```php
+enum PaymentMode: string
+{
+    case Live = 'live';
+    case Sandbox = 'sandbox';
+}
+
+public function __construct(
+    public PaymentMode $mode,
+) {}
+
+public static function development(): static { return new static(mode: PaymentMode::Sandbox); }
+public static function production(): static  { return new static(mode: PaymentMode::Live); }
+```
+
+The enum defines which values are **possible**; the settings class chooses which one each environment **uses**. Keep per-environment values in the factories — an enum has no environment awareness, so configuration placed inside one is invisible to `env-settings:show`, `env-settings:diff`, masking and local overrides.
+
+`toArray()` unwraps enums (backed → its value, pure → its case name, including inside arrays), so the result stays JSON-encodable, and both commands print the value rather than the object.
 
 ### 2. Register it
 

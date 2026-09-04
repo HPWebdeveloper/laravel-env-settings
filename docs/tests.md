@@ -141,6 +141,38 @@ Generated automatically by `bin/generate-test-inventory`. Edit tests to update t
 - test show displays boolean values correctly
   - Assertions: assertSame, assertStringContainsString
 
+## tests/Feature/EnumValuedSettingsTest.php
+
+- test an enum property resolves per environment
+  - Assertions: assertSame
+
+- test a backed enum is unwrapped to its value
+  - Assertions: assertSame
+
+- test a pure enum is unwrapped to its name
+  - Assertions: assertSame
+
+- test enums inside arrays are unwrapped
+  - Assertions: assertSame
+
+- test the whole payload survives json encode
+  - Assertions: assertIsString, assertJson, assertStringContainsString
+
+- test non enum values are untouched
+  - Assertions: assertSame
+
+- test show prints enum values rather than the object
+  - Assertions: assertStringContainsString, assertStringNotContainsString
+
+- test diff prints enum values and marks the difference
+  - Assertions: assertStringNotContainsString, assertStringContainsString, assertMatchesRegularExpression
+
+- test an identical enum value is not flagged as differing
+  - Assertions: assertStringContainsString
+
+- test enum cases are identical across environments
+  - Assertions: assertNotSame, assertSame
+
 ## tests/Feature/EnvironmentAttributeTest.php
 
 - test it resolves an environment named by the attribute

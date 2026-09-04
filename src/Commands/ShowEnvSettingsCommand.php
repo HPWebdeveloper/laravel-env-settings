@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace HpWebDeveloper\LaravelEnvSettings\Commands;
 
+use BackedEnum;
 use HpWebDeveloper\LaravelEnvSettings\Commands\Concerns\InteractsWithConsoleInput;
 use HpWebDeveloper\LaravelEnvSettings\Commands\Concerns\MasksSensitiveValues;
 use HpWebDeveloper\LaravelEnvSettings\EnvironmentSettings;
 use Illuminate\Console\Command;
 use ReflectionClass;
 use ReflectionProperty;
+use UnitEnum;
 
 use function Laravel\Prompts\note;
 
@@ -105,6 +107,14 @@ class ShowEnvSettingsCommand extends Command
 
         if ($value instanceof EnvironmentSettings) {
             return '[nested: '.get_class($value).']';
+        }
+
+        if ($value instanceof BackedEnum) {
+            return (string) $value->value;
+        }
+
+        if ($value instanceof UnitEnum) {
+            return $value->name;
         }
 
         if (is_object($value) && ! method_exists($value, '__toString')) {
