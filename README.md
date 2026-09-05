@@ -12,15 +12,14 @@
 
 A real Laravel application with worked examples: settings classes, per-environment values, local overrides, and the Artisan commands in action. The fastest way to understand the package before installing it.
 
-### 💡 [**Why this exists — the problem it solves**](https://hpweb.dev/learning/laravel/laravel-env-settings#1-the-problem)
+### 💡 [**Why this exists — the problem it solves, and whether it's for you**](https://laravel-env-settings.hpweb.dev/why)
 
-The reasoning behind the package: what goes wrong when non-secret configuration lives in `.env`, and why `env()` stops working once you cache your config.
+Fifteen reasons, each one a before and an after: what belongs in `.env`, types instead of strings, staying correct at runtime, working with other people, and where this fits alongside other packages. Tick the ones you recognise — it reads as a diagnosis rather than a feature list.
 
 ---
 
 ## Contents
 
-- [This package is for you if…](#this-package-is-for-you-if)
 - [AI Assistants](#ai-assistants)
 - [Requirements](#requirements)
 - [Installation](#installation)
@@ -66,12 +65,6 @@ envSettings(AuthSettings::class)->domain     // string, IDE autocomplete
 envSettings(AiSettings::class)->text_model   // defined per environment
 envSettings(PaymentSettings::class)->mode    // visible in git, reviewable in PRs
 ```
-
-## This package is for you if…
-
-### 🧭 [**Is this package for you? — 15 reasons, each one a before and an after**](https://laravel-env-settings.hpweb.dev/why)
-
-A page dedicated to exactly this question. Tick the problems you recognise — what belongs in `.env`, types instead of strings, staying correct at runtime, working with other people, and where this fits alongside other packages. Every reason shows the shape of the problem beside what replaces it, so it reads as a diagnosis rather than a feature list.
 
 ## AI Assistants
 
