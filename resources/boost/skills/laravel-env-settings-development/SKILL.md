@@ -196,12 +196,27 @@ Anti-pattern: treating `#[Sensitive]` as permission to put a secret in a setting
 
 ## Testing
 
+Prefer `fake()`: it resolves the current environment, replaces only the properties you name, and binds the result as the container singleton. Restating every constructor argument makes tests break whenever a property is added.
+
 ```php
-// Pin an exact instance
+AuthSettings::fake(['timeout' => 5]);                      // other values stay as the environment resolves them
+AuthSettings::fake(['timeout' => 5], from: 'production');  // start from another environment
+```
+
+An unknown property name throws `InvalidArgumentException` listing the known ones; a wrong type raises a `TypeError` at the call site. Each call resolves the base afresh, so two `fake()` calls do not stack.
+
+Outside tests, `with()` is the same copy without the container binding and `from()` resolves another environment through the real path (attributes, `environment_map`, overrides):
+
+```php
+$slow = AuthSettings::from('production')->with(['timeout' => 60]);
+```
+
+Both return a new instance and leave the original untouched. `readonly` properties cannot be replaced this way.
+
+```php
+// Still fine when a test must pin every value, or assert one environment
 $this->app->singleton(AuthSettings::class, fn () => new AuthSettings(
     domain: 'test.example.com', timeout: 5, mfa_enabled: false,
 ));
-
-// Or assert a specific environment's values
 $this->assertSame('dev.auth.example.com', AuthSettings::development()->domain);
 ```

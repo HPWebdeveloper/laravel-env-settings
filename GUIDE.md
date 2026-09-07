@@ -722,10 +722,46 @@ php artisan env-settings:diff
 
 ## Testing
 
-Settings are singletons, so they are easy to swap:
+Most tests care about one value. `fake()` starts from a real environment and replaces only what you name, then binds the result as the container singleton:
 
 ```php
-// Bind a specific instance
+AuthSettings::fake(['timeout' => 5]);
+
+envSettings(AuthSettings::class)->timeout;   // 5
+envSettings(AuthSettings::class)->domain;    // dev.auth.example.com — untouched
+```
+
+Every other property keeps the value the current environment resolves to, so adding a property later does not break the test. Pass `from:` to start from a different environment instead:
+
+```php
+AuthSettings::fake(['timeout' => 5], from: 'production');
+```
+
+A misspelled property throws immediately rather than silently changing nothing:
+
+```php
+AuthSettings::fake(['timout' => 5]);
+// InvalidArgumentException: Unknown property on App\Settings\AuthSettings: timout.
+// Known properties: domain, redirect_url, timeout, mfa_enabled.
+```
+
+Each call resolves the base afresh, so two `fake()` calls in one test do not stack — the second starts from the environment again, not from the first.
+
+### Outside tests
+
+`with()` is the same copy without the container binding, and `from()` resolves another environment through the real path — attributes, `environment_map` and local overrides included:
+
+```php
+$slow = AuthSettings::from('production')->with(['timeout' => 60]);
+```
+
+Both return a new instance; the original is untouched.
+
+### The explicit forms
+
+Still available when a test needs to pin every value, or to assert one environment directly:
+
+```php
 $this->app->singleton(AuthSettings::class, fn () => new AuthSettings(
     domain: 'test.example.com',
     redirect_url: 'http://test.example.com/callback',
@@ -733,7 +769,6 @@ $this->app->singleton(AuthSettings::class, fn () => new AuthSettings(
     mfa_enabled: false,
 ));
 
-// Or assert a specific environment's values directly
 $this->assertSame('dev.auth.example.com', AuthSettings::development()->domain);
 ```
 

@@ -278,6 +278,60 @@ Generated automatically by `bin/generate-test-inventory`. Edit tests to update t
 - test resolve falls back when override path is not a string
   - Assertions: assertSame
 
+## tests/Feature/PartialDoublesTest.php
+
+- test with replaces only the named properties
+  - Assertions: assertSame, assertFalse
+
+- test with replaces several properties at once
+  - Assertions: assertSame, assertTrue
+
+- test with leaves the original untouched
+  - Assertions: assertSame, assertNotSame
+
+- test with no properties returns an equal copy
+  - Assertions: assertNotSame, assertEquals
+
+- test with can replace a nested settings object
+  - Assertions: assertSame, assertEquals
+
+- test with rejects an unknown property
+
+- test the unknown property message lists the known ones
+
+- test the message is pluralised for several unknown properties
+
+- test with surfaces a type error at the call site
+
+- test from resolves the named environment
+  - Assertions: assertSame
+
+- test from restores the original environment
+  - Assertions: assertSame
+
+- test from honours the environment attribute
+  - Assertions: assertSame
+
+- test fake binds the double into the container
+  - Assertions: assertSame
+
+- test fake keeps the unnamed values of the current environment
+  - Assertions: assertSame
+
+- test fake can start from another environment
+  - Assertions: assertSame, assertTrue
+
+- test fake overrides a registered singleton
+  - Assertions: assertSame
+
+- test two fakes do not accumulate
+  - Assertions: assertSame, assertTrue
+
+- test fake returns the bound instance
+  - Assertions: assertSame
+
+- test fake rejects an unknown property
+
 ## tests/Feature/RegistrationTest.php
 
 - test auto registered class resolves for current environment
