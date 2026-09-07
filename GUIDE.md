@@ -664,6 +664,7 @@ public function __construct(
 ```bash
 php artisan env-settings:show                                # all registered classes
 php artisan env-settings:show "App\Settings\AuthSettings"    # one class
+php artisan env-settings:show --all                          # every environment side by side
 ```
 
 ```
@@ -677,6 +678,30 @@ php artisan env-settings:show "App\Settings\AuthSettings"    # one class
 | mfa_enabled  | bool   | true                             |
 +--------------+--------+----------------------------------+
 ```
+
+#### `--all`: every environment at once
+
+A settings class states every environment in one file — but `show` prints only the current one and `diff` only ever two, so comparing four environments took six `diff` runs. `--all` puts them in one table, one column per environment the class declares:
+
+```
+[ AuthSettings ] — development, staging, production
++---------------+----------------------+--------------------------+------------------+
+| Property      | development          | staging                  | production       |
++---------------+----------------------+--------------------------+------------------+
+| domain *      | dev.auth.example.com | staging.auth.example.com | auth.example.com |
+| timeout *     | 30                   | 20                       | 10               |
+| mfa_enabled * | false                | true                     | true             |
+| currency      | EUR                  | EUR                      | EUR              |
++---------------+----------------------+--------------------------+------------------+
+* = differs somewhere
+1 unmarked property is the same everywhere.
+```
+
+An unmarked row does not vary by environment, so it may not need to be a setting at all — a plain `config()` entry or a constant would do. That trailing count is the one thing this view tells you that no other command can.
+
+The columns are the factories the class itself declares, called directly, so what you see is the class's own set of environments rather than whatever `APP_ENV` happens to be. Values are compared *before* masking, so a `#[Sensitive]` property is still marked `*` when it differs between environments without being revealed.
+
+Works with or without a class argument — given none, every registered class gets its own matrix.
 
 #### Masking values
 

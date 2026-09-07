@@ -147,6 +147,30 @@ Generated automatically by `bin/generate-test-inventory`. Edit tests to update t
 - test show displays boolean values correctly
   - Assertions: assertSame, assertStringContainsString
 
+- test all prints a column for every declared environment
+  - Assertions: assertStringContainsString
+
+- test all shows every environment value in one table
+  - Assertions: assertStringContainsString
+
+- test all marks a property that differs somewhere
+  - Assertions: assertStringContainsString
+
+- test all leaves a property that is identical everywhere unmarked
+  - Assertions: assertMatchesRegularExpression, assertStringNotContainsString, assertStringContainsString
+
+- test all renders enums as their values
+  - Assertions: assertStringContainsString, assertStringNotContainsString
+
+- test all masks a sensitive property but still marks it as differing
+  - Assertions: assertStringContainsString, assertStringNotContainsString
+
+- test all covers every registered class when no class is named
+  - Assertions: assertSame, assertStringContainsString
+
+- test without the flag show still prints only the current environment
+  - Assertions: assertStringContainsString, assertStringNotContainsString
+
 ## tests/Feature/CheckCommandTest.php
 
 - test it fails when a factory was left at its placeholders

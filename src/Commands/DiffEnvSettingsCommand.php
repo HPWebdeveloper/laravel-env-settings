@@ -4,15 +4,14 @@ declare(strict_types=1);
 
 namespace HpWebDeveloper\LaravelEnvSettings\Commands;
 
-use BackedEnum;
 use HpWebDeveloper\LaravelEnvSettings\Commands\Concerns\DetectsEnvironments;
+use HpWebDeveloper\LaravelEnvSettings\Commands\Concerns\FormatsValues;
 use HpWebDeveloper\LaravelEnvSettings\Commands\Concerns\InteractsWithConsoleInput;
 use HpWebDeveloper\LaravelEnvSettings\Commands\Concerns\MasksSensitiveValues;
 use HpWebDeveloper\LaravelEnvSettings\EnvironmentSettings;
 use Illuminate\Console\Command;
 use ReflectionClass;
 use ReflectionProperty;
-use UnitEnum;
 
 use function Laravel\Prompts\error;
 use function Laravel\Prompts\note;
@@ -22,6 +21,7 @@ use function Laravel\Prompts\warning;
 class DiffEnvSettingsCommand extends Command
 {
     use DetectsEnvironments;
+    use FormatsValues;
     use InteractsWithConsoleInput;
     use MasksSensitiveValues;
 
@@ -205,42 +205,5 @@ class DiffEnvSettingsCommand extends Command
         }
 
         return $options[$selected] ?? '';
-    }
-
-    private function formatValue(mixed $value): string
-    {
-        if (is_bool($value)) {
-            return $value ? 'true' : 'false';
-        }
-
-        if (is_array($value)) {
-            return json_encode($value, JSON_THROW_ON_ERROR);
-        }
-
-        if ($value instanceof EnvironmentSettings) {
-            return '[nested: '.get_class($value).']';
-        }
-
-        if ($value instanceof BackedEnum) {
-            return (string) $value->value;
-        }
-
-        if ($value instanceof UnitEnum) {
-            return $value->name;
-        }
-
-        // Without these two, an object with no __toString raises an Error here,
-        // and a null renders as '' — indistinguishable from an empty string, so
-        // a real difference between the two goes unmarked. `env-settings:show`
-        // has always guarded both.
-        if (is_object($value) && ! method_exists($value, '__toString')) {
-            return '[object: '.get_class($value).']';
-        }
-
-        if ($value === null) {
-            return 'null';
-        }
-
-        return (string) $value;
     }
 }

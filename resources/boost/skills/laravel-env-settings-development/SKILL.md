@@ -1,6 +1,6 @@
 ---
 name: laravel-env-settings-development
-description: Create and use typed, environment-aware settings classes with hpwebdeveloper/laravel-env-settings — generating classes, registering them, reading values, declaring environments with #[Environment], masking console output with #[Sensitive], local overrides, verifying completeness in CI with env-settings:check, and keeping non-secret configuration out of .env.
+description: Create and use typed, environment-aware settings classes with hpwebdeveloper/laravel-env-settings — generating classes, registering them, reading values, declaring environments with #[Environment], masking console output with #[Sensitive], comparing every environment at once with show --all, local overrides, verifying completeness in CI with env-settings:check, and keeping non-secret configuration out of .env.
 ---
 
 # Laravel Env Settings Development
@@ -15,6 +15,7 @@ Use this skill when:
 - Setting up per-developer local overrides for settings
 - Resolving a non-standard `APP_ENV` (`qa`, `uat`, `demo`) to a factory method
 - Hiding a property's value in `env-settings:show` / `env-settings:diff` output
+- Answering "how do these environments differ?" across more than two of them
 - Adding a CI step that fails when a settings class was never finished for an environment
 
 ## Core Concepts
@@ -147,10 +148,13 @@ For many settings classes, compose a root object whose factories call the childr
 ```shell
 php artisan env-settings:show                                # all registered classes
 php artisan env-settings:show "App\Settings\AuthSettings"    # one class
+php artisan env-settings:show --all                          # every environment side by side
 php artisan env-settings:diff "App\Settings\AuthSettings" development production
 php artisan env-settings:diff                                # prompts for class and environments
 php artisan env-settings:check --env=production              # fails if anything is unfinished
 ```
+
+Reach for `--all` when the question is *"how do these environments differ?"* — `diff` answers it for exactly two, so four environments would take six runs. The matrix marks a property `*` when it differs anywhere and reports how many are the same everywhere; an unmarked property does not vary by environment, so it may not need to be a setting at all.
 
 ### Verifying settings before they ship
 

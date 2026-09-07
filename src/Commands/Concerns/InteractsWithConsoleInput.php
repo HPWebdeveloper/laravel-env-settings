@@ -60,4 +60,18 @@ trait InteractsWithConsoleInput
 
         throw new InvalidArgumentException("The [{$name}] option must be a single value.");
     }
+
+    /**
+     * Read a flag option, which Symfony reports as a boolean.
+     */
+    private function boolOption(string $name): bool
+    {
+        $value = $this->option($name);
+
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        throw new InvalidArgumentException("The [{$name}] option must be a flag.");
+    }
 }

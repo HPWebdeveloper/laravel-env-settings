@@ -38,6 +38,7 @@ Fifteen reasons, each one a before and an after: what belongs in `.env`, types i
   - [`env-settings:make`](#env-settingsmake)
   - [`env-settings:check`](#env-settingscheck)
   - [`env-settings:show`](#env-settingsshow)
+    - [`--all`: every environment at once](#--all-every-environment-at-once)
   - [`env-settings:diff`](#env-settingsdiff)
 - [Full documentation](#full-documentation)
 - [Changelog](#changelog)
@@ -329,6 +330,7 @@ public function __construct(
 ```bash
 php artisan env-settings:show                                # all registered classes
 php artisan env-settings:show "App\Settings\AuthSettings"    # one class
+php artisan env-settings:show --all                          # every environment side by side
 ```
 
 ```
@@ -341,6 +343,28 @@ php artisan env-settings:show "App\Settings\AuthSettings"    # one class
 | mfa_enabled | bool   | true             |
 +-------------+--------+------------------+
 ```
+
+#### `--all`: every environment at once
+
+A settings class states every environment in one file — but `show` prints only the current one and `diff` only ever two, so four environments took six `diff` runs to compare. `--all` puts them in one table:
+
+```
+[ AuthSettings ] — development, staging, production
++---------------+----------------------+--------------------------+------------------+
+| Property      | development          | staging                  | production       |
++---------------+----------------------+--------------------------+------------------+
+| domain *      | dev.auth.example.com | staging.auth.example.com | auth.example.com |
+| timeout *     | 30                   | 20                       | 10               |
+| mfa_enabled * | false                | true                     | true             |
+| currency      | EUR                  | EUR                      | EUR              |
++---------------+----------------------+--------------------------+------------------+
+* = differs somewhere
+1 unmarked property is the same everywhere.
+```
+
+An unmarked row does not vary by environment, so it may not need to be a setting at all — that trailing count is the one thing this view tells you that no other command can.
+
+Values are compared before masking, so a `#[Sensitive]` property is still marked `*` when it differs without being revealed.
 
 ### `env-settings:diff`
 

@@ -6,7 +6,9 @@ namespace HpWebDeveloper\LaravelEnvSettings\Tests\Commands;
 
 use HpWebDeveloper\LaravelEnvSettings\EnvSettingsServiceProvider;
 use HpWebDeveloper\LaravelEnvSettings\Tests\Fixtures\FakeAuthSettings;
+use HpWebDeveloper\LaravelEnvSettings\Tests\Fixtures\FakeEnumSettings;
 use HpWebDeveloper\LaravelEnvSettings\Tests\Fixtures\FakePaymentSettings;
+use HpWebDeveloper\LaravelEnvSettings\Tests\Fixtures\FakeSecretSettings;
 use HpWebDeveloper\LaravelEnvSettings\Tests\TestCase;
 use Illuminate\Support\Facades\Artisan;
 
@@ -74,5 +76,111 @@ class ShowEnvSettingsCommandTest extends TestCase
 
         $this->assertSame(0, $exitCode);
         $this->assertStringContainsString('true', $output);
+    }
+
+    // -------------------------------------------------------------------
+    // --all: every environment side by side
+    // -------------------------------------------------------------------
+
+    /**
+     * @param  class-string  $class
+     */
+    private function matrix(string $class): string
+    {
+        Artisan::call('env-settings:show', ['class' => $class, '--all' => true]);
+
+        return Artisan::output();
+    }
+
+    public function test_all_prints_a_column_for_every_declared_environment(): void
+    {
+        $output = $this->matrix(FakeAuthSettings::class);
+
+        foreach (['development', 'production', 'staging', 'testing'] as $environment) {
+            $this->assertStringContainsString($environment, $output);
+        }
+    }
+
+    public function test_all_shows_every_environment_value_in_one_table(): void
+    {
+        // The point of the flag: values that `show` alone would need four runs
+        // and `diff` six to put in front of you.
+        $output = $this->matrix(FakeAuthSettings::class);
+
+        $this->assertStringContainsString('dev.auth.example.com', $output);
+        $this->assertStringContainsString('auth.example.com', $output);
+        $this->assertStringContainsString('staging.auth.example.com', $output);
+    }
+
+    public function test_all_marks_a_property_that_differs_somewhere(): void
+    {
+        $output = $this->matrix(FakeAuthSettings::class);
+
+        $this->assertStringContainsString('domain *', $output);
+        $this->assertStringContainsString('differs somewhere', $output);
+    }
+
+    public function test_all_leaves_a_property_that_is_identical_everywhere_unmarked(): void
+    {
+        // currency is EUR in every environment, so it does not vary and is a
+        // candidate for not being a setting at all.
+        $output = $this->matrix(FakeEnumSettings::class);
+
+        $this->assertMatchesRegularExpression('/\|\s+currency\s+\|/', $output);
+        $this->assertStringNotContainsString('currency *', $output);
+        $this->assertStringContainsString('the same everywhere', $output);
+    }
+
+    public function test_all_renders_enums_as_their_values(): void
+    {
+        $output = $this->matrix(FakeEnumSettings::class);
+
+        $this->assertStringContainsString('sandbox', $output);
+        $this->assertStringContainsString('live', $output);
+        $this->assertStringNotContainsString('[object:', $output);
+    }
+
+    public function test_all_masks_a_sensitive_property_but_still_marks_it_as_differing(): void
+    {
+        // Comparison happens on the real values, masking only on the way out —
+        // otherwise every masked property would look identical everywhere.
+        $output = $this->matrix(FakeSecretSettings::class);
+
+        $this->assertStringContainsString('passphrase *', $output);
+        $this->assertStringNotContainsString('dev-pass', $output);
+        $this->assertStringNotContainsString('live-pass', $output);
+        $this->assertStringContainsString('********', $output);
+    }
+
+    public function test_all_covers_every_registered_class_when_no_class_is_named(): void
+    {
+        config()->set('env-settings.register', [FakeAuthSettings::class, FakeEnumSettings::class]);
+
+        $exitCode = Artisan::call('env-settings:show', ['--all' => true]);
+        $output = Artisan::output();
+
+        $this->assertSame(0, $exitCode);
+        $this->assertStringContainsString('FakeAuthSettings', $output);
+        $this->assertStringContainsString('FakeEnumSettings', $output);
+    }
+
+    public function test_without_the_flag_show_still_prints_only_the_current_environment(): void
+    {
+        app()->detectEnvironment(fn () => 'production');
+
+        $output = $this->matrixless(FakeAuthSettings::class);
+
+        $this->assertStringContainsString('Environment: production', $output);
+        $this->assertStringNotContainsString('staging.auth.example.com', $output);
+    }
+
+    /**
+     * @param  class-string  $class
+     */
+    private function matrixless(string $class): string
+    {
+        Artisan::call('env-settings:show', ['class' => $class]);
+
+        return Artisan::output();
     }
 }

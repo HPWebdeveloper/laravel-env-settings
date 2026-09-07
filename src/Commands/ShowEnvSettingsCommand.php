@@ -4,24 +4,27 @@ declare(strict_types=1);
 
 namespace HpWebDeveloper\LaravelEnvSettings\Commands;
 
-use BackedEnum;
+use HpWebDeveloper\LaravelEnvSettings\Commands\Concerns\DetectsEnvironments;
+use HpWebDeveloper\LaravelEnvSettings\Commands\Concerns\FormatsValues;
 use HpWebDeveloper\LaravelEnvSettings\Commands\Concerns\InteractsWithConsoleInput;
 use HpWebDeveloper\LaravelEnvSettings\Commands\Concerns\MasksSensitiveValues;
 use HpWebDeveloper\LaravelEnvSettings\EnvironmentSettings;
 use Illuminate\Console\Command;
 use ReflectionClass;
 use ReflectionProperty;
-use UnitEnum;
 
 use function Laravel\Prompts\note;
 
 class ShowEnvSettingsCommand extends Command
 {
+    use DetectsEnvironments;
+    use FormatsValues;
     use InteractsWithConsoleInput;
     use MasksSensitiveValues;
 
     protected $signature = 'env-settings:show
-        {class? : Fully qualified class name of a specific settings class}';
+        {class? : Fully qualified class name of a specific settings class}
+        {--all : Show every environment side by side instead of the current one}';
 
     protected $description = 'Display the resolved settings for the current environment';
 
@@ -44,7 +47,7 @@ class ShowEnvSettingsCommand extends Command
             return self::FAILURE;
         }
 
-        $this->renderSettings($class);
+        $this->render($class);
 
         return self::SUCCESS;
     }
@@ -62,12 +65,98 @@ class ShowEnvSettingsCommand extends Command
 
         foreach ($classes as $class) {
             if (is_string($class) && class_exists($class) && is_subclass_of($class, EnvironmentSettings::class)) {
-                $this->renderSettings($class);
+                $this->render($class);
                 $this->newLine();
             }
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * @param  class-string<EnvironmentSettings>  $class
+     */
+    private function render(string $class): void
+    {
+        if ($this->boolOption('all')) {
+            $this->renderMatrix($class);
+
+            return;
+        }
+
+        $this->renderSettings($class);
+    }
+
+    /**
+     * Print one column per environment the class declares.
+     *
+     * A settings class states every environment in one file — that is the whole
+     * argument for having it — but `show` printed only the current one and
+     * `diff` only ever two, so seeing the whole picture meant reading the
+     * source. This is that picture.
+     *
+     * Factories are called directly rather than resolved, so the columns are the
+     * environments the class itself declares.
+     *
+     * @param  class-string<EnvironmentSettings>  $class
+     */
+    private function renderMatrix(string $class): void
+    {
+        $instances = [];
+
+        foreach ($this->detectEnvironments($class) as $environment) {
+            if (method_exists($class, $environment)) {
+                $instances[$environment] = $class::{$environment}();
+            }
+        }
+
+        if ($instances === []) {
+            return;
+        }
+
+        $reflection = new ReflectionClass(reset($instances));
+        $this->info("[ {$reflection->getShortName()} ] — ".implode(', ', array_keys($instances)));
+
+        $rows = [];
+        $differing = 0;
+
+        foreach ($reflection->getProperties(ReflectionProperty::IS_PUBLIC) as $prop) {
+            $rendered = [];
+            $raw = [];
+
+            foreach ($instances as $environment => $instance) {
+                $value = $prop->getValue($instance);
+                $raw[] = $this->formatValue($value);
+                // Compare real values, then mask for display, so a #[Sensitive]
+                // property still earns its * without being revealed.
+                $rendered[] = $this->maskIfSensitive($prop, $value, end($raw));
+            }
+
+            $differs = count(array_unique($raw)) > 1;
+            $differing += $differs ? 1 : 0;
+
+            $rows[] = array_merge([$prop->getName().($differs ? ' *' : '')], $rendered);
+        }
+
+        $this->table(array_merge(['Property'], array_keys($instances)), $rows);
+
+        if ($differing === 0) {
+            $this->line('No property varies by environment — these values may not need a settings class.');
+
+            return;
+        }
+
+        $this->line('* = differs somewhere');
+
+        $identical = count($rows) - $differing;
+
+        if ($identical > 0) {
+            $this->line(sprintf(
+                '%d unmarked %s the same everywhere.',
+                $identical,
+                $identical === 1 ? 'property is' : 'properties are',
+            ));
+        }
     }
 
     /**
@@ -93,38 +182,5 @@ class ShowEnvSettingsCommand extends Command
         }
 
         $this->table(['Property', 'Type', 'Value'], $rows);
-    }
-
-    private function formatValue(mixed $value): string
-    {
-        if (is_bool($value)) {
-            return $value ? 'true' : 'false';
-        }
-
-        if (is_array($value)) {
-            return json_encode($value, JSON_THROW_ON_ERROR);
-        }
-
-        if ($value instanceof EnvironmentSettings) {
-            return '[nested: '.get_class($value).']';
-        }
-
-        if ($value instanceof BackedEnum) {
-            return (string) $value->value;
-        }
-
-        if ($value instanceof UnitEnum) {
-            return $value->name;
-        }
-
-        if (is_object($value) && ! method_exists($value, '__toString')) {
-            return '[object: '.get_class($value).']';
-        }
-
-        if ($value === null) {
-            return 'null';
-        }
-
-        return (string) $value;
     }
 }
