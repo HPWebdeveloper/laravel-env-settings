@@ -521,4 +521,146 @@ class MakeEnvSettingsCommandTest extends TestCase
 
         return $matches[1] ?? '';
     }
+
+    // -------------------------------------------------------------------
+    // --shared
+    // -------------------------------------------------------------------
+
+    public function test_shared_gives_the_property_a_default_and_drops_it_from_the_factories(): void
+    {
+        $this->artisanCommand('env-settings:make', [
+            'name' => 'AiSettings',
+            '--properties' => 'provider:string,currency:string',
+            '--shared' => 'currency=EUR',
+            '--path' => $this->outputPath,
+        ])->assertSuccessful();
+
+        $content = $this->readFile($this->outputPath.'/AiSettings.php');
+
+        $this->assertStringContainsString("public string \$currency = 'EUR',", $content);
+        // The whole point: written once in the signature, not in each factory.
+        $this->assertStringNotContainsString('currency:', $content);
+        $this->assertStringContainsString('provider:', $content);
+    }
+
+    public function test_shared_renders_each_scalar_type_as_a_php_literal(): void
+    {
+        $this->artisanCommand('env-settings:make', [
+            'name' => 'TypedSettings',
+            '--properties' => 'name:string,retries:int,ratio:float,rate:float,verbose:bool,strict:bool',
+            '--shared' => 'name=eu,retries=3,ratio=0.2,rate=2,verbose=false,strict=true',
+            '--path' => $this->outputPath,
+        ])->assertSuccessful();
+
+        $content = $this->readFile($this->outputPath.'/TypedSettings.php');
+
+        $this->assertStringContainsString("public string \$name = 'eu',", $content);
+        $this->assertStringContainsString('public int $retries = 3,', $content);
+        $this->assertStringContainsString('public float $ratio = 0.2,', $content);
+        // A float given as a whole number still has to render as a float literal.
+        $this->assertStringContainsString('public float $rate = 2.0,', $content);
+        $this->assertStringContainsString('public bool $verbose = false,', $content);
+        $this->assertStringContainsString('public bool $strict = true,', $content);
+    }
+
+    public function test_shared_properties_are_ordered_after_the_required_ones(): void
+    {
+        // PHP requires optional parameters last, so a shared property declared
+        // first in --properties still has to move.
+        $this->artisanCommand('env-settings:make', [
+            'name' => 'OrderedSettings',
+            '--properties' => 'currency:string,provider:string',
+            '--shared' => 'currency=EUR',
+            '--path' => $this->outputPath,
+        ])->assertSuccessful();
+
+        $content = $this->readFile($this->outputPath.'/OrderedSettings.php');
+
+        $this->assertLessThan(
+            strpos($content, 'currency'),
+            strpos($content, 'public string $provider,'),
+            'the property without a default must come first or the class will not parse',
+        );
+    }
+
+    public function test_a_generated_shared_class_parses_as_valid_php(): void
+    {
+        $this->artisanCommand('env-settings:make', [
+            'name' => 'SharedLintSettings',
+            '--properties' => 'currency:string,provider:string,retries:int',
+            '--shared' => 'currency=EUR,retries=3',
+            '--path' => $this->outputPath,
+        ])->assertSuccessful();
+
+        $lint = shell_exec('php -l '.escapeshellarg($this->outputPath.'/SharedLintSettings.php').' 2>&1');
+
+        $this->assertStringContainsString('No syntax errors', (string) $lint);
+    }
+
+    public function test_shared_rejects_an_unknown_property_name(): void
+    {
+        $this->artisanCommand('env-settings:make', [
+            'name' => 'UnknownSharedSettings',
+            '--properties' => 'currency:string',
+            '--shared' => 'curency=EUR',
+            '--path' => $this->outputPath,
+        ])->expectsOutputToContain('Unknown property in --shared')
+            ->assertFailed();
+
+        $this->assertFileDoesNotExist($this->outputPath.'/UnknownSharedSettings.php');
+    }
+
+    public function test_shared_rejects_a_pair_without_a_value(): void
+    {
+        $this->artisanCommand('env-settings:make', [
+            'name' => 'NoValueSettings',
+            '--properties' => 'currency:string',
+            '--shared' => 'currency',
+            '--path' => $this->outputPath,
+        ])->expectsOutputToContain('name=value')
+            ->assertFailed();
+    }
+
+    public function test_shared_rejects_a_value_that_does_not_fit_the_type(): void
+    {
+        // Writing `public int $retries = many,` would not compile, so this must
+        // fail at the command rather than produce a broken class.
+        $this->artisanCommand('env-settings:make', [
+            'name' => 'BadTypeSettings',
+            '--properties' => 'retries:int',
+            '--shared' => 'retries=many',
+            '--path' => $this->outputPath,
+        ])->expectsOutputToContain('cannot be written on the command line')
+            ->assertFailed();
+
+        $this->assertFileDoesNotExist($this->outputPath.'/BadTypeSettings.php');
+    }
+
+    public function test_shared_refuses_an_array_property_rather_than_mangling_it(): void
+    {
+        // A comma-separated option cannot express an array literal, and guessing
+        // would emit a class that does not parse.
+        $this->artisanCommand('env-settings:make', [
+            'name' => 'ArraySharedSettings',
+            '--properties' => 'regions:array',
+            '--shared' => 'regions=eu',
+            '--path' => $this->outputPath,
+        ])->expectsOutputToContain('Add it to the constructor by hand')
+            ->assertFailed();
+    }
+
+    public function test_shared_combines_with_sensitive(): void
+    {
+        $this->artisanCommand('env-settings:make', [
+            'name' => 'BothSettings',
+            '--properties' => 'provider:string,token:string',
+            '--sensitive' => 'token',
+            '--shared' => 'token=fixed',
+            '--path' => $this->outputPath,
+        ])->assertSuccessful();
+
+        $content = $this->readFile($this->outputPath.'/BothSettings.php');
+
+        $this->assertStringContainsString("#[Sensitive] public string \$token = 'fixed',", $content);
+    }
 }

@@ -119,6 +119,7 @@ class ShowEnvSettingsCommand extends Command
 
         $rows = [];
         $differing = 0;
+        $same = [];
 
         foreach ($reflection->getProperties(ReflectionProperty::IS_PUBLIC) as $prop) {
             $rendered = [];
@@ -135,27 +136,32 @@ class ShowEnvSettingsCommand extends Command
             $differs = count(array_unique($raw)) > 1;
             $differing += $differs ? 1 : 0;
 
+            if (! $differs) {
+                $same[] = $prop->getName();
+            }
+
             $rows[] = array_merge([$prop->getName().($differs ? ' *' : '')], $rendered);
         }
 
         $this->table(array_merge(['Property'], array_keys($instances)), $rows);
 
         if ($differing === 0) {
-            $this->line('No property varies by environment — these values may not need a settings class.');
+            $this->line('No property varies by environment — these values may not need a settings class at all.');
 
             return;
         }
 
         $this->line('* = differs somewhere');
 
-        $identical = count($rows) - $differing;
-
-        if ($identical > 0) {
+        if ($same !== []) {
+            // Naming them is the actionable half: each is a value repeated in
+            // every factory that PHP could hold once, in the signature.
             $this->line(sprintf(
-                '%d unmarked %s the same everywhere.',
-                $identical,
-                $identical === 1 ? 'property is' : 'properties are',
+                '%s the same in every environment: %s',
+                count($same) === 1 ? '1 property is' : count($same).' properties are',
+                implode(', ', $same),
             ));
+            $this->line('Each can be a constructor default instead, written once — see env-settings:make --shared.');
         }
     }
 

@@ -128,7 +128,25 @@ class ShowEnvSettingsCommandTest extends TestCase
 
         $this->assertMatchesRegularExpression('/\|\s+currency\s+\|/', $output);
         $this->assertStringNotContainsString('currency *', $output);
-        $this->assertStringContainsString('the same everywhere', $output);
+        $this->assertStringContainsString('the same in every environment', $output);
+    }
+
+    public function test_all_names_the_properties_that_never_vary(): void
+    {
+        // Counting them was not actionable; naming them is. Each is a value
+        // repeated in every factory that a constructor default could hold once.
+        $output = $this->matrix(FakeEnumSettings::class);
+
+        $this->assertStringContainsString('1 property is the same in every environment: currency', $output);
+        $this->assertStringContainsString('env-settings:make --shared', $output);
+    }
+
+    public function test_all_does_not_suggest_defaults_when_every_property_varies(): void
+    {
+        $output = $this->matrix(FakeAuthSettings::class);
+
+        $this->assertStringNotContainsString('the same in every environment', $output);
+        $this->assertStringNotContainsString('--shared', $output);
     }
 
     public function test_all_renders_enums_as_their_values(): void

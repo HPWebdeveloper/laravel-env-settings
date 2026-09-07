@@ -1,6 +1,6 @@
 ---
 name: laravel-env-settings-development
-description: Create and use typed, environment-aware settings classes with hpwebdeveloper/laravel-env-settings — generating classes, registering them, reading values, declaring environments with #[Environment], masking console output with #[Sensitive], comparing every environment at once with show --all, local overrides, verifying completeness in CI with env-settings:check, and keeping non-secret configuration out of .env.
+description: Create and use typed, environment-aware settings classes with hpwebdeveloper/laravel-env-settings — generating classes, registering them, reading values, declaring environments with #[Environment], masking console output with #[Sensitive], comparing every environment at once with show --all, writing values that never vary once as constructor defaults, local overrides, verifying completeness in CI with env-settings:check, and keeping non-secret configuration out of .env.
 ---
 
 # Laravel Env Settings Development
@@ -41,6 +41,7 @@ Options:
 - `--path=app/Modules/Billing/Settings` — the namespace is derived from the path (`App\Modules\Billing\Settings`)
 - `--namespace="Acme\Billing\Settings"` — required when `--path` is outside `app/`, otherwise the class will not autoload
 - `--sensitive=passphrase,api_key` — marks the named properties `#[Sensitive]` in the generated class; unknown names fail the command
+- `--shared="currency=EUR,timeout=30"` — the named properties become constructor defaults and are left out of the factories; scalars only, unknown names and values that do not fit the type fail the command
 
 ## Class anatomy
 
@@ -72,6 +73,35 @@ class AuthSettings extends EnvironmentSettings
     // Only override them when their values genuinely differ.
 }
 ```
+
+## Values that never vary
+
+A property holding the same value in every environment does not belong in every
+factory. Give it a constructor default — written once, in the signature, where a
+reader looks for the property anyway:
+
+```php
+public function __construct(
+    public string $provider,             // varies
+    public float $temperature = 0.2,     // the same everywhere
+) {}
+
+public static function development(): static { return new static(provider: 'ollama'); }
+public static function production(): static  { return new static(provider: 'openai'); }
+
+// an environment that genuinely differs just passes it
+public static function staging(): static { return new static(provider: 'openai', temperature: 0.9); }
+```
+
+Do not reach for a package mechanism here — this is plain PHP and it works with
+every command, masking, overrides and `toArray()` unchanged. PHP requires
+parameters with defaults last, so they collect at the end of the constructor.
+`env-settings:show --all` names the properties that never vary, and
+`env-settings:make --shared` generates this shape.
+
+Keep it in the settings class rather than moving it to `config/`: a class holding
+provider, model and temperature is cohesive, and splitting one property out means
+two places to look and `envSettings(...)->temperature` no longer working.
 
 ## Registering
 

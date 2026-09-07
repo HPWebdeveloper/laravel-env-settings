@@ -130,6 +130,31 @@ Generated automatically by `bin/generate-test-inventory`. Edit tests to update t
 - test it does not corrupt a config with a block comment in the register array
   - Assertions: assertSame
 
+- test shared gives the property a default and drops it from the factories
+  - Assertions: assertStringContainsString, assertStringNotContainsString
+
+- test shared renders each scalar type as a php literal
+  - Assertions: assertStringContainsString
+
+- test shared properties are ordered after the required ones
+  - Assertions: assertLessThan
+
+- test a generated shared class parses as valid php
+  - Assertions: assertStringContainsString
+
+- test shared rejects an unknown property name
+  - Assertions: assertFileDoesNotExist
+
+- test shared rejects a pair without a value
+
+- test shared rejects a value that does not fit the type
+  - Assertions: assertFileDoesNotExist
+
+- test shared refuses an array property rather than mangling it
+
+- test shared combines with sensitive
+  - Assertions: assertStringContainsString
+
 ## tests/Commands/ShowEnvSettingsCommandTest.php
 
 - test show displays resolved settings for a class
@@ -158,6 +183,12 @@ Generated automatically by `bin/generate-test-inventory`. Edit tests to update t
 
 - test all leaves a property that is identical everywhere unmarked
   - Assertions: assertMatchesRegularExpression, assertStringNotContainsString, assertStringContainsString
+
+- test all names the properties that never vary
+  - Assertions: assertStringContainsString
+
+- test all does not suggest defaults when every property varies
+  - Assertions: assertStringNotContainsString
 
 - test all renders enums as their values
   - Assertions: assertStringContainsString, assertStringNotContainsString

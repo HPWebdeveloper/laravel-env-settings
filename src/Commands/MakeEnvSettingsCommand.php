@@ -23,7 +23,8 @@ class MakeEnvSettingsCommand extends Command
         {--properties= : Comma-separated properties with types (e.g. domain:string,timeout:int,enabled:bool)}
         {--path= : Custom directory to create the file in (default: app/Settings)}
         {--namespace= : Explicit PHP namespace for the class (default: derived from --path, else config env-settings.class_namespace)}
-        {--sensitive= : Comma-separated property names to mark #[Sensitive] (each must appear in --properties)}';
+        {--sensitive= : Comma-separated property names to mark #[Sensitive] (each must appear in --properties)}
+        {--shared= : Comma-separated name=value pairs for properties that are the same in every environment (e.g. currency=EUR,timeout=30)}';
 
     protected $description = 'Create a new environment settings class';
 
@@ -47,13 +48,19 @@ class MakeEnvSettingsCommand extends Command
             return self::FAILURE;
         }
 
+        $shared = $this->parseShared($this->stringOption('shared'), $properties);
+
+        if ($shared === null) {
+            return self::FAILURE;
+        }
+
         $namespace = $this->resolveNamespace($path);
 
         if ($namespace === null) {
             return self::FAILURE;
         }
 
-        $stub = $this->buildStub($namespace, $name, $properties, $sensitive);
+        $stub = $this->buildStub($namespace, $name, $properties, $sensitive, $shared);
 
         $files->ensureDirectoryExists(dirname($filePath));
         $files->put($filePath, $stub);
@@ -116,6 +123,79 @@ class MakeEnvSettingsCommand extends Command
         }
 
         return $names;
+    }
+
+    /**
+     * Parse and validate the --shared option.
+     *
+     * A property that holds the same value in every environment does not need
+     * repeating in each factory: PHP gives it a constructor default, written
+     * once, and an environment that genuinely differs passes the argument. This
+     * generates that shape rather than four copies of the same literal.
+     *
+     * @param  array<int, array{name: string, type: string}>  $properties
+     * @return array<string, string>|null property name => rendered PHP literal,
+     *                                    null on invalid input
+     */
+    private function parseShared(?string $raw, array $properties): ?array
+    {
+        if ($raw === null || trim($raw) === '') {
+            return [];
+        }
+
+        $types = array_column($properties, 'type', 'name');
+        $known = array_keys($types);
+        $shared = [];
+
+        foreach (array_filter(array_map('trim', explode(',', $raw))) as $pair) {
+            if (! str_contains($pair, '=')) {
+                error("--shared expects name=value pairs, got '{$pair}'. Example: --shared=\"currency=EUR,timeout=30\".");
+
+                return null;
+            }
+
+            [$name, $value] = array_map('trim', explode('=', $pair, 2));
+
+            if (! isset($types[$name])) {
+                error("Unknown property in --shared: {$name}. Known properties: ".implode(', ', $known).'.');
+
+                return null;
+            }
+
+            $literal = $this->literalForType($types[$name], $value);
+
+            if ($literal === null) {
+                error("Cannot use --shared for {$name}: a {$types[$name]} default cannot be written on the command line. Add it to the constructor by hand.");
+
+                return null;
+            }
+
+            $shared[$name] = $literal;
+        }
+
+        return $shared;
+    }
+
+    /**
+     * Render a command-line string as a PHP literal of the given type.
+     *
+     * Only the scalar types are supported. An array or enum default is not
+     * expressible as one comma-separated argument, and guessing would produce a
+     * class that does not compile — so those are refused rather than mangled.
+     */
+    private function literalForType(string $type, string $value): ?string
+    {
+        return match ($type) {
+            'string' => var_export($value, true),
+            'int' => preg_match('/^-?\d+$/', $value) === 1 ? $value : null,
+            'float' => is_numeric($value) ? (str_contains($value, '.') ? $value : $value.'.0') : null,
+            'bool' => match (strtolower($value)) {
+                'true', '1' => 'true',
+                'false', '0' => 'false',
+                default => null,
+            },
+            default => null,
+        };
     }
 
     /**
@@ -442,8 +522,9 @@ class MakeEnvSettingsCommand extends Command
     /**
      * @param  array<int, array{name: string, type: string}>  $properties
      * @param  list<string>  $sensitive
+     * @param  array<string, string>  $shared  property name => rendered PHP literal
      */
-    private function buildStub(string $namespace, string $class, array $properties, array $sensitive = []): string
+    private function buildStub(string $namespace, string $class, array $properties, array $sensitive = [], array $shared = []): string
     {
         $stubPath = __DIR__.'/../../stubs/env-settings.stub';
         $stub = file_get_contents($stubPath);
@@ -453,15 +534,31 @@ class MakeEnvSettingsCommand extends Command
         }
 
         $propsLines = [];
+        $sharedLines = [];
         $devValues = [];
         $prodValues = [];
 
         foreach ($properties as $prop) {
             $attribute = in_array($prop['name'], $sensitive, true) ? '#[Sensitive] ' : '';
+
+            // A shared property carries its value in the signature and is left
+            // out of the factories entirely. PHP requires optional parameters
+            // after required ones, so these collect at the end.
+            if (isset($shared[$prop['name']])) {
+                $sharedLines[] = "        {$attribute}public {$prop['type']} \${$prop['name']} = {$shared[$prop['name']]},";
+
+                continue;
+            }
+
             $propsLines[] = "        {$attribute}public {$prop['type']} \${$prop['name']},";
             $default = $this->defaultForType($prop['type']);
             $devValues[] = "            {$prop['name']}: {$default}, // TODO: set development value";
             $prodValues[] = "            {$prop['name']}: {$default}, // TODO: set production value";
+        }
+
+        if ($sharedLines !== []) {
+            $propsLines[] = '        // Same in every environment — an environment that differs passes its own.';
+            $propsLines = array_merge($propsLines, $sharedLines);
         }
 
         $imports = $sensitive === []

@@ -603,6 +603,32 @@ php artisan env-settings:make VaultSettings \
 
 `--sensitive` takes a comma-separated list of property names; each gets the `#[Sensitive]` attribute (and the import is added). A name that matches no property fails the command rather than silently marking nothing.
 
+`--shared` takes `name=value` pairs for properties that hold the same value in every environment:
+
+```bash
+php artisan env-settings:make AiSettings \
+    --properties="provider:string,temperature:float,currency:string" \
+    --shared="temperature=0.2,currency=EUR"
+```
+
+```php
+public function __construct(
+    public string $provider,
+    // Same in every environment — an environment that differs passes its own.
+    public float $temperature = 0.2,
+    public string $currency = 'EUR',
+) {}
+
+public static function development(): static
+{
+    return new static(
+        provider: '', // TODO: set development value
+    );
+}
+```
+
+Each named property carries its value as a constructor default and is left out of the factories, so it is written once instead of once per environment. PHP requires parameters with defaults to come last, so they are moved to the end of the constructor. Scalars only: an array or enum default cannot be expressed as one comma-separated argument, so those are refused rather than mangled into a class that will not parse. A value that must be computed at runtime still has to be written in each factory.
+
 **How the namespace is chosen.** A generated class only autoloads if its namespace matches where the file was written, so the namespace is resolved in this order:
 
 1. **`--namespace`**, when given — used exactly as provided.

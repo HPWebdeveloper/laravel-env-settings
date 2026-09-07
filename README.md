@@ -138,6 +138,23 @@ class AuthSettings extends EnvironmentSettings
 
 Property types: `string`, `int`, `float`, `bool`, `array`, or [any enum](#fixed-value-properties-enums).
 
+**A value that is the same everywhere goes in the signature, not in every factory.** Give it a constructor default and write it once:
+
+```php
+public function __construct(
+    public string $provider,             // varies by environment
+    public float $temperature = 0.2,     // the same everywhere — written once
+) {}
+
+public static function development(): static { return new static(provider: 'ollama'); }
+public static function production(): static  { return new static(provider: 'openai'); }
+
+// and the one environment that genuinely differs just passes it
+public static function staging(): static { return new static(provider: 'openai', temperature: 0.9); }
+```
+
+Generate that shape directly with [`--shared`](#env-settingsmake). PHP requires parameters with defaults to come last, so they collect at the end of the constructor.
+
 ### 2. Register
 
 A settings class stays inert until it is listed in `config/env-settings.php`:
@@ -281,7 +298,14 @@ php artisan env-settings:make NotificationSettings \
 # Mark properties #[Sensitive] as they are generated
 php artisan env-settings:make VaultSettings \
     --properties="endpoint:string,passphrase:string" --sensitive=passphrase
+
+# Values that are the same in every environment become constructor defaults
+php artisan env-settings:make AiSettings \
+    --properties="provider:string,temperature:float,currency:string" \
+    --shared="temperature=0.2,currency=EUR"
 ```
+
+`--shared` takes `name=value` pairs. Each named property gets the value as a constructor default and is left out of the factories entirely, so it is written once instead of once per environment. Scalars only — an array or enum default cannot be expressed as one comma-separated argument, so those are refused rather than mangled into a class that will not parse.
 
 A generated class only autoloads if its namespace matches where the file was written, so the namespace is resolved in this order: `--namespace` if given, otherwise derived from `--path` when that directory sits under the application root, otherwise `config('env-settings.class_namespace')`. A path outside the application root has no PSR-4 mapping to read, so it falls back to the default and warns — pass `--namespace` in that case. → [full table](GUIDE.md#env-settingsmake)
 
