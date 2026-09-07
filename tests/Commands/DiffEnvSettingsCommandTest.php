@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace HpWebDeveloper\LaravelEnvSettings\Tests\Commands;
 
 use HpWebDeveloper\LaravelEnvSettings\Tests\Fixtures\FakeAuthSettings;
+use HpWebDeveloper\LaravelEnvSettings\Tests\Fixtures\FakeObjectValuedSettings;
 use HpWebDeveloper\LaravelEnvSettings\Tests\Fixtures\FakePaymentSettings;
 use HpWebDeveloper\LaravelEnvSettings\Tests\TestCase;
 use Illuminate\Support\Facades\Artisan;
@@ -86,5 +87,37 @@ class DiffEnvSettingsCommandTest extends TestCase
 
         $this->assertSame(0, $exitCode);
         $this->assertStringContainsString('values differ', $output);
+    }
+
+    /**
+     * @return string the command's output
+     */
+    private function diffObjectValued(): string
+    {
+        Artisan::call('env-settings:diff', [
+            'class' => FakeObjectValuedSettings::class,
+            'env1' => 'development',
+            'env2' => 'production',
+        ]);
+
+        return Artisan::output();
+    }
+
+    public function test_diff_renders_an_object_that_cannot_be_cast_to_string(): void
+    {
+        // Casting one raised `Error: Object of class DateTimeImmutable could not
+        // be converted to string`, taking the whole command down.
+        $this->assertStringContainsString('[object: DateTimeImmutable]', $this->diffObjectValued());
+    }
+
+    public function test_diff_distinguishes_null_from_an_empty_string(): void
+    {
+        // Both used to render as '', so the comparison saw them as equal and the
+        // row went unmarked — the command reporting no difference where one
+        // exists is worse than the crash above.
+        $output = $this->diffObjectValued();
+
+        $this->assertStringContainsString('null', $output);
+        $this->assertStringContainsString('label *', $output);
     }
 }

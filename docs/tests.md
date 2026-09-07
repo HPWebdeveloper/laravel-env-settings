@@ -40,6 +40,12 @@ Generated automatically by `bin/generate-test-inventory`. Edit tests to update t
 - test diff marks different values
   - Assertions: assertSame, assertStringContainsString
 
+- test diff renders an object that cannot be cast to string
+  - Assertions: assertStringContainsString
+
+- test diff distinguishes null from an empty string
+  - Assertions: assertStringContainsString
+
 ## tests/Commands/MakeEnvSettingsCommandTest.php
 
 - test it creates a settings class file

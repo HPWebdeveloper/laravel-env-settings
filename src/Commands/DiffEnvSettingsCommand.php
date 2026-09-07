@@ -229,6 +229,18 @@ class DiffEnvSettingsCommand extends Command
             return $value->name;
         }
 
+        // Without these two, an object with no __toString raises an Error here,
+        // and a null renders as '' — indistinguishable from an empty string, so
+        // a real difference between the two goes unmarked. `env-settings:show`
+        // has always guarded both.
+        if (is_object($value) && ! method_exists($value, '__toString')) {
+            return '[object: '.get_class($value).']';
+        }
+
+        if ($value === null) {
+            return 'null';
+        }
+
         return (string) $value;
     }
 }
