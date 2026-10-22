@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace HpWebDeveloper\LaravelEnvSettings\Tests\Commands;
 
 use HpWebDeveloper\LaravelEnvSettings\EnvSettingsServiceProvider;
+use HpWebDeveloper\LaravelEnvSettings\Tests\Fixtures\FakeAppSettings;
 use HpWebDeveloper\LaravelEnvSettings\Tests\Fixtures\FakeAuthSettings;
+use HpWebDeveloper\LaravelEnvSettings\Tests\Fixtures\FakeComposedSettings;
 use HpWebDeveloper\LaravelEnvSettings\Tests\Fixtures\FakeDefaultsSettings;
 use HpWebDeveloper\LaravelEnvSettings\Tests\Fixtures\FakeEnumSettings;
 use HpWebDeveloper\LaravelEnvSettings\Tests\Fixtures\FakeObjectValuedSettings;
@@ -186,15 +188,41 @@ class ShowEnvSettingsCommandTest extends TestCase
         $this->assertStringContainsString('Each can be a constructor default instead', $output);
     }
 
-    public function test_all_does_not_name_a_value_it_cannot_see_inside(): void
+    public function test_all_does_not_suggest_a_default_for_a_nested_class(): void
     {
-        // starts_at holds a different date in each environment, but an object
-        // renders as its class name, so every column looks alike. Suggesting a
-        // constructor default for it would be wrong.
-        $output = $this->matrix(FakeObjectValuedSettings::class);
+        // payment is the same in every environment, but a child settings class
+        // is built by its own factories — not a literal for the signature.
+        $output = $this->matrix(FakeComposedSettings::class);
 
-        $this->assertStringContainsString('label *', $output);
         $this->assertStringNotContainsString('constructor default', $output);
+    }
+
+    public function test_all_marks_a_nested_class_that_differs_inside(): void
+    {
+        // Every cell reads [nested: Class], so comparing the rendered strings
+        // reported a composed class as never varying.
+        $output = $this->matrix(FakeAppSettings::class);
+
+        $this->assertStringContainsString('auth *', $output);
+        $this->assertStringContainsString('payment *', $output);
+        $this->assertStringNotContainsString('No property varies', $output);
+        $this->assertStringContainsString('A nested class marked * differs inside', $output);
+    }
+
+    public function test_all_leaves_a_nested_class_unmarked_when_it_holds_the_same_values(): void
+    {
+        // Equal values in separate instances: compared by state, not identity.
+        $output = $this->matrix(FakeComposedSettings::class);
+
+        $this->assertStringContainsString('auth *', $output);
+        $this->assertMatchesRegularExpression('/\|\s+payment\s+\|/', $output);
+    }
+
+    public function test_all_marks_an_object_that_differs(): void
+    {
+        // starts_at holds a different date in each environment; both render as
+        // [object: DateTimeImmutable], which hid the difference.
+        $this->assertStringContainsString('starts_at *', $this->matrix(FakeObjectValuedSettings::class));
     }
 
     public function test_all_renders_enums_as_their_values(): void

@@ -391,7 +391,7 @@ An unmarked row holds the same value in every environment, and the footer names 
 
 A class that inherits `staging()` or `testing()` gets no column for it, since those return `development()`. A line below the table names them instead: `Not shown: staging() and testing(), which fall back to development().`
 
-Values are compared before masking, so a `#[Sensitive]` property is still marked `*` when it differs without being revealed.
+Values are compared before masking, so a `#[Sensitive]` property is still marked `*` when it differs without being revealed. A nested settings class is compared by what it holds: its row is marked `*` when anything inside it differs, even though every cell reads `[nested: …]` — run `--all` on that class to see where.
 
 ### `env-settings:diff`
 

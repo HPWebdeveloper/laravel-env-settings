@@ -6,10 +6,12 @@ namespace HpWebDeveloper\LaravelEnvSettings\Commands\Concerns;
 
 use BackedEnum;
 use HpWebDeveloper\LaravelEnvSettings\EnvironmentSettings;
+use Throwable;
 use UnitEnum;
 
 /**
- * Renders a resolved setting value for console output.
+ * Renders a resolved setting value for console output, and decides when two
+ * of them are the same.
  *
  * Shared so the commands cannot drift apart. `env-settings:show` and
  * `env-settings:diff` each carried their own copy, and the one in `diff` was
@@ -63,5 +65,28 @@ trait FormatsValues
     {
         return $value instanceof EnvironmentSettings
             || (is_object($value) && ! $value instanceof UnitEnum && ! method_exists($value, '__toString'));
+    }
+
+    /**
+     * A string that two values share exactly when they hold the same setting.
+     *
+     * Most values compare by how they render. A nested settings class or an
+     * object renders as its class name, so it is compared by its state
+     * instead — otherwise a composed class whose children differ in every
+     * environment is reported as never varying, and `diff` finds nothing.
+     */
+    private function comparisonKey(mixed $value): string
+    {
+        if (! $this->rendersAsPlaceholder($value)) {
+            return $this->formatValue($value);
+        }
+
+        try {
+            return serialize($value);
+        } catch (Throwable) {
+            // A closure, or another object PHP refuses to serialise: all that
+            // is left to compare is the class name.
+            return $this->formatValue($value);
+        }
     }
 }

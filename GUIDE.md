@@ -267,7 +267,7 @@ A settings class stays inert until it is listed in `config/env-settings.php`:
 ],
 ```
 
-`env-settings:make` appends this line for you when the config has been published. If it can't — the config isn't published, or it has no `register` array — it tells you exactly what to add, so a class is never left silently unregistered.
+`env-settings:make` appends this line for you when the config has been published. If it can't — the config isn't published, or it has no `register` array — it tells you exactly what to add, so a class is never left silently unregistered. A class that is already listed is left alone, whether it is written in full or as a short name behind a `use` import at the top of the config.
 
 Each registered class becomes a **singleton** in the service container, resolved once and reused for the lifetime of the request.
 
@@ -724,7 +724,9 @@ A settings class states every environment in one file — but `show` prints only
 Each can be a constructor default instead — written once, in the signature.
 ```
 
-An unmarked row holds the same value in every environment, and the footer names each one still written out in every factory — something no other command can tell you. Give it a constructor default and it is written once, in the signature, while an environment that genuinely differs passes its own value ([`--shared`](#env-settingsmake) generates that shape for a new class). Keep it in the settings class rather than moving it to `config()`, so the class stays the one place to look. A property that already holds its default is not named, and neither is a nested settings class or an object, whose value this view cannot see inside.
+An unmarked row holds the same value in every environment, and the footer names each one still written out in every factory — something no other command can tell you. Give it a constructor default and it is written once, in the signature, while an environment that genuinely differs passes its own value ([`--shared`](#env-settingsmake) generates that shape for a new class). Keep it in the settings class rather than moving it to `config()`, so the class stays the one place to look. A property that already holds its default is not named, and neither is a nested settings class or an object — a child is built by its own factories, not written as a default.
+
+A nested settings class is compared by what it holds, as is any other object: its row is marked `*` when anything inside it differs, even though every cell reads `[nested: …]`. A line below the table says so — run `--all` on the nested class to see where.
 
 The columns come from calling the class's factories directly, so they do not depend on what `APP_ENV` happens to be. A `staging()` or `testing()` the class inherits gets no column, because it returns `development()` and would only repeat that one. A line below the table names it instead — `Not shown: testing(), which falls back to development().` — since an environment silently running development's values is worth knowing. Values are compared *before* masking, so a `#[Sensitive]` property is still marked `*` when it differs between environments without being revealed.
 
@@ -771,6 +773,8 @@ php artisan env-settings:diff
 +----------------+--------------------------------+----------------------------------+
 * = values differ between environments
 ```
+
+A nested settings class is compared by what it holds, so `diff` on a composed root class marks each child that differs anywhere inside — then `diff` that child to see which values.
 
 ## Testing
 

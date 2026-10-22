@@ -95,6 +95,7 @@ class DiffEnvSettingsCommand extends Command
 
         $rows = [];
         $hasDiff = false;
+        $nestedDiffers = false;
 
         foreach ($reflection->getProperties(ReflectionProperty::IS_PUBLIC) as $prop) {
             $name = $prop->getName();
@@ -105,13 +106,14 @@ class DiffEnvSettingsCommand extends Command
 
             // Compare the real values, then mask for display, so a sensitive
             // property is still reported as differing without being revealed.
-            $diff = $val1 !== $val2 ? ' *' : '';
+            $diff = $this->comparisonKey($raw1) !== $this->comparisonKey($raw2) ? ' *' : '';
 
             $val1 = $this->maskIfSensitive($prop, $raw1, $val1);
             $val2 = $this->maskIfSensitive($prop, $raw2, $val2);
 
             if ($diff) {
                 $hasDiff = true;
+                $nestedDiffers = $nestedDiffers || $raw1 instanceof EnvironmentSettings || $raw2 instanceof EnvironmentSettings;
             }
 
             $rows[] = [$name.$diff, $val1, $val2];
@@ -121,6 +123,11 @@ class DiffEnvSettingsCommand extends Command
 
         if ($hasDiff) {
             $this->line('* = values differ between environments');
+
+            if ($nestedDiffers) {
+                // Its cells both read [nested: Class], so the * needs a pointer.
+                $this->line('A nested class marked * differs inside: run env-settings:diff on it to see where.');
+            }
         } else {
             $this->info('No differences found.');
         }

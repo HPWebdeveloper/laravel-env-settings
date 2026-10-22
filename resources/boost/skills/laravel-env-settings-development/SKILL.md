@@ -34,7 +34,7 @@ php artisan env-settings:make AuthSettings --properties="domain:string,timeout:i
 
 Supported property types: `string`, `int`, `float`, `bool`, `array`. For a property with a fixed set of valid values, type it as a PHP enum instead of `string` — a typo then fails at parse time, and the valid set is documented by the type. The enum defines which values are possible; the settings class factories choose which one each environment uses. Never store per-environment values inside the enum: they would be invisible to `show`, `diff`, masking and local overrides. `toArray()` unwraps enums (backed → value, pure → case name), so JSON output keeps working. The generated class contains `// TODO: set development value` placeholders — always fill them in immediately.
 
-The command auto-appends the class to the `register` array in `config/env-settings.php` when the config is published. If it warns instead, follow the instruction it prints.
+The command auto-appends the class to the `register` array in `config/env-settings.php` when the config is published, and leaves a class that is already listed alone — written in full or as a short name behind a `use` import. If it warns instead, follow the instruction it prints.
 
 Options:
 
@@ -185,7 +185,7 @@ php artisan env-settings:diff                                # prompts for class
 php artisan env-settings:check --env=production              # fails if anything is unfinished
 ```
 
-Reach for `--all` when the question is *"how do these environments differ?"* — `diff` answers it for exactly two, so four environments would take six runs. The matrix marks a property `*` when it differs anywhere, and names every property still written out with the same value in every factory — give each a constructor default (see *Values that never vary*) rather than moving it out of the class. An inherited `staging()` or `testing()` returns `development()`, so it is named below the table instead of getting a column.
+Reach for `--all` when the question is *"how do these environments differ?"* — `diff` answers it for exactly two, so four environments would take six runs. The matrix marks a property `*` when it differs anywhere, and names every property still written out with the same value in every factory — give each a constructor default (see *Values that never vary*) rather than moving it out of the class. An inherited `staging()` or `testing()` returns `development()`, so it is named below the table instead of getting a column. A nested settings class is compared by what it holds — `show --all` and `diff` mark its row `*` when anything inside differs; inspect that class to see where.
 
 ### Verifying settings before they ship
 

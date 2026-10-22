@@ -57,6 +57,22 @@ class MakeEnvSettingsCommandTest extends TestCase
     }
 
     /**
+     * Write a published config that imports classes and registers them short.
+     *
+     * @param  list<string>  $imports  each written as `use {$import};`
+     */
+    private function publishConfigWithImports(array $imports, string ...$registerLines): string
+    {
+        $path = config_path('env-settings.php');
+        $use = implode("\n", array_map(static fn (string $import): string => "use {$import};", $imports));
+        $body = $registerLines === [] ? '' : "\n        ".implode("\n        ", $registerLines);
+
+        file_put_contents($path, "<?php\n\n{$use}\n\nreturn [\n\n    'register' => [{$body}\n    ],\n\n];\n");
+
+        return $path;
+    }
+
+    /**
      * Register an application-root directory for removal in tearDown.
      */
     private function appDir(string $relative): string
@@ -381,6 +397,89 @@ class MakeEnvSettingsCommandTest extends TestCase
             1,
             substr_count($this->readFile($configPath), 'AuthSettings::class')
         );
+    }
+
+    public function test_it_does_not_duplicate_a_short_name_backed_by_an_import(): void
+    {
+        // The style the demo application uses. Compared as written, the short
+        // entry never matched the fully-qualified name, so the class was
+        // appended a second time.
+        $configPath = $this->publishConfigWithImports(['App\Settings\AuthSettings'], 'AuthSettings::class,');
+
+        $this->artisanCommand('env-settings:make', [
+            'name' => 'AuthSettings',
+            '--path' => $this->outputPath,
+            '--namespace' => 'App\\Settings',
+        ])->expectsOutputToContain('already registered')
+            ->assertSuccessful();
+
+        $this->assertSame(['App\\Settings\\AuthSettings'], $this->requireConfig($configPath)['register']);
+    }
+
+    public function test_it_does_not_duplicate_a_class_registered_under_an_alias(): void
+    {
+        $configPath = $this->publishConfigWithImports(['App\Settings\AuthSettings as Auth'], 'Auth::class,');
+
+        $this->artisanCommand('env-settings:make', [
+            'name' => 'AuthSettings',
+            '--path' => $this->outputPath,
+            '--namespace' => 'App\\Settings',
+        ])->expectsOutputToContain('already registered')
+            ->assertSuccessful();
+
+        $this->assertSame(['App\\Settings\\AuthSettings'], $this->requireConfig($configPath)['register']);
+    }
+
+    public function test_it_does_not_duplicate_a_class_from_a_group_import(): void
+    {
+        $configPath = $this->publishConfigWithImports(
+            ['App\Settings\{AiSettings, AuthSettings}'],
+            'AiSettings::class,',
+            'AuthSettings::class,',
+        );
+
+        $this->artisanCommand('env-settings:make', [
+            'name' => 'AuthSettings',
+            '--path' => $this->outputPath,
+            '--namespace' => 'App\\Settings',
+        ])->expectsOutputToContain('already registered')
+            ->assertSuccessful();
+
+        $this->assertSame(
+            ['App\\Settings\\AiSettings', 'App\\Settings\\AuthSettings'],
+            $this->requireConfig($configPath)['register']
+        );
+    }
+
+    public function test_it_does_not_duplicate_a_class_written_in_another_case(): void
+    {
+        // PHP class names are case-insensitive, so this is the same class.
+        $configPath = $this->publishConfig('\app\settings\authsettings::class,');
+
+        $this->artisanCommand('env-settings:make', [
+            'name' => 'AuthSettings',
+            '--path' => $this->outputPath,
+            '--namespace' => 'App\\Settings',
+        ])->expectsOutputToContain('already registered')
+            ->assertSuccessful();
+
+        $this->assertCount(1, $this->requireConfig($configPath)['register']);
+    }
+
+    public function test_it_registers_a_short_name_that_has_no_matching_import(): void
+    {
+        // Without an import, AuthSettings::class is the global \AuthSettings —
+        // a different class — so the settings class must still be appended.
+        $configPath = $this->publishConfig('AuthSettings::class,');
+
+        $this->artisanCommand('env-settings:make', [
+            'name' => 'AuthSettings',
+            '--path' => $this->outputPath,
+            '--namespace' => 'App\\Settings',
+        ])->expectsOutputToContain('Registered')
+            ->assertSuccessful();
+
+        $this->assertSame(['AuthSettings', 'App\\Settings\\AuthSettings'], $this->requireConfig($configPath)['register']);
     }
 
     public function test_it_appends_to_an_empty_register_array(): void

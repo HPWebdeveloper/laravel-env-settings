@@ -397,7 +397,10 @@ class MakeEnvSettingsCommand extends Command
         [$start, $length] = $located;
         $body = substr($content, $start, $length);
 
-        if (in_array($fqcn, $this->registeredClasses($body), true)) {
+        // Class names are case-insensitive in PHP, so the comparison is too.
+        $registered = array_map('strtolower', $this->registeredClasses($body, $this->importMap($content)));
+
+        if (in_array(strtolower($fqcn), $registered, true)) {
             $this->line("  → \\{$fqcn}::class is already registered in config/env-settings.php");
 
             return;
@@ -515,16 +518,18 @@ class MakeEnvSettingsCommand extends Command
     }
 
     /**
-     * List the classes actually registered in a `register` array body.
+     * List the classes actually registered in a `register` array body, as
+     * fully-qualified names.
      *
      * Comments are stripped first: the published config ships commented-out
      * examples such as `// \App\Settings\AuthSettings::class,`, and treating
      * those as real entries would silently skip registering a class of the
      * same name.
      *
+     * @param  array<string, string>  $imports  lowercased alias => fully-qualified name
      * @return list<string>
      */
-    private function registeredClasses(string $registerBody): array
+    private function registeredClasses(string $registerBody, array $imports = []): array
     {
         $body = preg_replace('%/\*[\s\S]*?\*/%', '', $registerBody) ?? $registerBody;
         $body = preg_replace('%(//|\#).*$%m', '', $body) ?? $body;
@@ -536,9 +541,89 @@ class MakeEnvSettingsCommand extends Command
         );
 
         return array_values(array_map(
-            static fn (string $class): string => ltrim($class, '\\'),
+            fn (string $class): string => $this->qualify($class, $imports),
             $matches[1]
         ));
+    }
+
+    /**
+     * Resolve a name written in the `register` array to a fully-qualified one.
+     *
+     * Entries are often written short — `AuthSettings::class` — against a
+     * `use` import at the top of the config. Compared as written, those never
+     * match the fully-qualified name, so a class that is already registered
+     * would be appended a second time.
+     *
+     * @param  array<string, string>  $imports  lowercased alias => fully-qualified name
+     */
+    private function qualify(string $class, array $imports): string
+    {
+        if (str_starts_with($class, '\\')) {
+            return ltrim($class, '\\');
+        }
+
+        $segments = explode('\\', $class);
+        $alias = strtolower((string) array_shift($segments));
+
+        // Without an import, a short name resolves to the global namespace —
+        // a different class — so it is left as written.
+        if (! isset($imports[$alias])) {
+            return $class;
+        }
+
+        return implode('\\', [$imports[$alias], ...$segments]);
+    }
+
+    /**
+     * Map the config file's class imports by the alias each one binds.
+     *
+     * Covers `use A\B;`, `use A\B as C;`, several imports in one statement,
+     * and group imports such as `use App\Settings\{AiSettings, AuthSettings};`.
+     * `use function` and `use const` import no classes and are skipped.
+     *
+     * @return array<string, string> lowercased alias => fully-qualified name
+     */
+    private function importMap(string $content): array
+    {
+        // Strip block comments so a commented-out import cannot bind an alias.
+        // Line comments need no stripping: an import must start its line.
+        $source = preg_replace('%/\*[\s\S]*?\*/%', '', $content) ?? $content;
+
+        preg_match_all('/^[ \t]*use[ \t]+(?!function\b|const\b)([^;]+);/mi', $source, $statements);
+
+        $imports = [];
+
+        foreach ($statements[1] as $statement) {
+            $prefix = '';
+
+            if (preg_match('/^([^{]*)\{(.*)\}\s*$/s', $statement, $group) === 1) {
+                $prefix = trim($group[1], " \t\n\r\\").'\\';
+                $statement = $group[2];
+            }
+
+            foreach (explode(',', $statement) as $clause) {
+                $matched = preg_match(
+                    '/^\s*\\\\?([A-Za-z_\x80-\xff][A-Za-z0-9_\x80-\xff\\\\]*)(?:\s+as\s+([A-Za-z_\x80-\xff][A-Za-z0-9_\x80-\xff]*))?\s*$/i',
+                    $clause,
+                    $match
+                );
+
+                if ($matched !== 1) {
+                    continue;
+                }
+
+                $name = $prefix.$match[1];
+                $alias = $match[2] ?? '';
+
+                if ($alias === '') {
+                    $alias = class_basename($name);
+                }
+
+                $imports[strtolower($alias)] = $name;
+            }
+        }
+
+        return $imports;
     }
 
     /**

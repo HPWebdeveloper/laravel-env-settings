@@ -46,6 +46,15 @@ Generated automatically by `bin/generate-test-inventory`. Edit tests to update t
 - test diff distinguishes null from an empty string
   - Assertions: assertStringContainsString
 
+- test diff marks an object that differs
+  - Assertions: assertStringContainsString
+
+- test diff marks a nested class that differs inside
+  - Assertions: assertStringContainsString, assertStringNotContainsString
+
+- test diff leaves a nested class unmarked when it holds the same values
+  - Assertions: assertStringContainsString, assertMatchesRegularExpression
+
 ## tests/Commands/MakeEnvSettingsCommandTest.php
 
 - test it creates a settings class file
@@ -111,6 +120,20 @@ Generated automatically by `bin/generate-test-inventory`. Edit tests to update t
   - Assertions: assertStringContainsString
 
 - test it does not duplicate a class that is already registered
+  - Assertions: assertSame
+
+- test it does not duplicate a short name backed by an import
+  - Assertions: assertSame
+
+- test it does not duplicate a class registered under an alias
+  - Assertions: assertSame
+
+- test it does not duplicate a class from a group import
+
+- test it does not duplicate a class written in another case
+  - Assertions: assertCount
+
+- test it registers a short name that has no matching import
   - Assertions: assertSame
 
 - test it appends to an empty register array
@@ -208,8 +231,17 @@ Generated automatically by `bin/generate-test-inventory`. Edit tests to update t
 - test all names a default that every factory overrides with the same value
   - Assertions: assertMatchesRegularExpression, assertStringContainsString
 
-- test all does not name a value it cannot see inside
+- test all does not suggest a default for a nested class
+  - Assertions: assertStringNotContainsString
+
+- test all marks a nested class that differs inside
   - Assertions: assertStringContainsString, assertStringNotContainsString
+
+- test all leaves a nested class unmarked when it holds the same values
+  - Assertions: assertStringContainsString, assertMatchesRegularExpression
+
+- test all marks an object that differs
+  - Assertions: assertStringContainsString
 
 - test all renders enums as their values
   - Assertions: assertStringContainsString, assertStringNotContainsString

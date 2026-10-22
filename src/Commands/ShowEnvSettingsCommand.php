@@ -123,21 +123,27 @@ class ShowEnvSettingsCommand extends Command
         $rows = [];
         $differing = 0;
         $repeated = [];
+        $nestedDiffers = false;
 
         foreach ($reflection->getProperties(ReflectionProperty::IS_PUBLIC) as $prop) {
             $rendered = [];
             $raw = [];
+            $keys = [];
+            $nested = false;
 
             foreach ($instances as $environment => $instance) {
                 $value = $prop->getValue($instance);
                 $raw[] = $this->formatValue($value);
+                $keys[] = $this->comparisonKey($value);
+                $nested = $nested || $value instanceof EnvironmentSettings;
                 // Compare real values, then mask for display, so a #[Sensitive]
                 // property still earns its * without being revealed.
                 $rendered[] = $this->maskIfSensitive($prop, $value, end($raw));
             }
 
-            $differs = count(array_unique($raw)) > 1;
+            $differs = count(array_unique($keys)) > 1;
             $differing += $differs ? 1 : 0;
+            $nestedDiffers = $nestedDiffers || ($differs && $nested);
 
             if (! $differs && $this->isRepeatedInEveryFactory($prop, $prop->getValue($first), $raw[0])) {
                 $repeated[] = $prop->getName();
@@ -152,6 +158,11 @@ class ShowEnvSettingsCommand extends Command
             $this->line('No property varies by environment — these values may not need a settings class at all.');
         } else {
             $this->line('* = differs somewhere');
+
+            if ($nestedDiffers) {
+                // Its cells all read [nested: Class], so the * needs a pointer.
+                $this->line('A nested class marked * differs inside: run env-settings:show --all on it to see where.');
+            }
 
             if ($repeated !== []) {
                 // Naming them is the actionable half: each is a value repeated in
@@ -201,8 +212,8 @@ class ShowEnvSettingsCommand extends Command
      * equal the default, not merely have one: a default that every factory
      * overrides with the same value is still repeated per factory.
      *
-     * A nested settings class or an object renders as its class name, so
-     * whether it repeats cannot be seen here; it is never named.
+     * A nested settings class or an object is never named: a child is built
+     * by its own factories, and neither is the literal a default is meant for.
      */
     private function isRepeatedInEveryFactory(ReflectionProperty $prop, mixed $value, string $rendered): bool
     {
