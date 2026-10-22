@@ -25,7 +25,7 @@ final class FakePaymentSettings extends EnvironmentSettings
 
     public static function production(): static
     {
-        return new static(
+        return new self(
             mode: 'live',
             currency: 'EUR',
             retry_attempts: 5,

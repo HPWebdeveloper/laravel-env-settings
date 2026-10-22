@@ -23,7 +23,7 @@ final class FakeAppSettings extends EnvironmentSettings
 
     public static function production(): static
     {
-        return new static(
+        return new self(
             auth: FakeAuthSettings::production(),
             payment: FakePaymentSettings::production(),
         );
@@ -31,7 +31,7 @@ final class FakeAppSettings extends EnvironmentSettings
 
     public static function staging(): static
     {
-        return new static(
+        return new self(
             auth: FakeAuthSettings::staging(),
             payment: FakePaymentSettings::staging(),
         );
