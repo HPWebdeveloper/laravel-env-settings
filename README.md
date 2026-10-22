@@ -373,20 +373,23 @@ php artisan env-settings:show --all                          # every environment
 A settings class states every environment in one file — but `show` prints only the current one and `diff` only ever two, so four environments took six `diff` runs to compare. `--all` puts them in one table:
 
 ```
-[ AuthSettings ] — development, staging, production
-+---------------+----------------------+--------------------------+------------------+
-| Property      | development          | staging                  | production       |
-+---------------+----------------------+--------------------------+------------------+
-| domain *      | dev.auth.example.com | staging.auth.example.com | auth.example.com |
-| timeout *     | 30                   | 20                       | 10               |
-| mfa_enabled * | false                | true                     | true             |
-| currency      | EUR                  | EUR                      | EUR              |
-+---------------+----------------------+--------------------------+------------------+
+[ AuthSettings ] — development, production, staging, testing
++---------------+----------------------+------------------+--------------------------+-----------------------+
+| Property      | development          | production       | staging                  | testing               |
++---------------+----------------------+------------------+--------------------------+-----------------------+
+| domain *      | dev.auth.example.com | auth.example.com | staging.auth.example.com | test.auth.example.com |
+| timeout *     | 30                   | 10               | 20                       | 5                     |
+| mfa_enabled * | false                | true             | true                     | false                 |
+| currency      | EUR                  | EUR              | EUR                      | EUR                   |
++---------------+----------------------+------------------+--------------------------+-----------------------+
 * = differs somewhere
-1 unmarked property is the same everywhere.
+1 property is repeated with the same value in every environment: currency
+Each can be a constructor default instead — written once, in the signature.
 ```
 
-An unmarked row does not vary by environment, so it may not need to be a setting at all — that trailing count is the one thing this view tells you that no other command can.
+An unmarked row holds the same value in every environment, and the footer names each one still written out in every factory — something no other command can tell you. Give it a [constructor default](#1-generate) and it is written once, in the signature; a property that already holds its default is not named.
+
+A class that inherits `staging()` or `testing()` gets no column for it, since those return `development()`. A line below the table names them instead: `Not shown: staging() and testing(), which fall back to development().`
 
 Values are compared before masking, so a `#[Sensitive]` property is still marked `*` when it differs without being revealed.
 

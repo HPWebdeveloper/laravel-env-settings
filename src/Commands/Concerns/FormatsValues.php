@@ -51,4 +51,17 @@ trait FormatsValues
 
         return (string) $value;
     }
+
+    /**
+     * Whether formatValue() shows only a placeholder for the value.
+     *
+     * A nested settings class or an object with no string form renders as its
+     * class name, so two different values can render alike and a comparison
+     * of the rendered strings cannot tell them apart.
+     */
+    private function rendersAsPlaceholder(mixed $value): bool
+    {
+        return $value instanceof EnvironmentSettings
+            || (is_object($value) && ! $value instanceof UnitEnum && ! method_exists($value, '__toString'));
+    }
 }

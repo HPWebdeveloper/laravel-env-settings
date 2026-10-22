@@ -627,7 +627,7 @@ public static function development(): static
 }
 ```
 
-Each named property carries its value as a constructor default and is left out of the factories, so it is written once instead of once per environment. PHP requires parameters with defaults to come last, so they are moved to the end of the constructor. Scalars only: an array or enum default cannot be expressed as one comma-separated argument, so those are refused rather than mangled into a class that will not parse. A value that must be computed at runtime still has to be written in each factory.
+Each named property carries its value as a constructor default and is left out of the factories, so it is written once instead of once per environment. PHP requires parameters with defaults to come last, so they are moved to the end of the constructor. Scalars only: an array or enum default cannot be expressed as one comma-separated argument, so those are refused rather than mangled into a class that will not parse. Numbers must mean in PHP what they say on the command line, so an `int` with a leading zero is refused too — PHP would read `010` as octal 8. A value that must be computed at runtime still has to be written in each factory.
 
 **How the namespace is chosen.** A generated class only autoloads if its namespace matches where the file was written, so the namespace is resolved in this order:
 
@@ -707,25 +707,26 @@ php artisan env-settings:show --all                          # every environment
 
 #### `--all`: every environment at once
 
-A settings class states every environment in one file — but `show` prints only the current one and `diff` only ever two, so comparing four environments took six `diff` runs. `--all` puts them in one table, one column per environment the class declares:
+A settings class states every environment in one file — but `show` prints only the current one and `diff` only ever two, so comparing four environments took six `diff` runs. `--all` puts them in one table, one column per environment the class defines:
 
 ```
-[ AuthSettings ] — development, staging, production
-+---------------+----------------------+--------------------------+------------------+
-| Property      | development          | staging                  | production       |
-+---------------+----------------------+--------------------------+------------------+
-| domain *      | dev.auth.example.com | staging.auth.example.com | auth.example.com |
-| timeout *     | 30                   | 20                       | 10               |
-| mfa_enabled * | false                | true                     | true             |
-| currency      | EUR                  | EUR                      | EUR              |
-+---------------+----------------------+--------------------------+------------------+
+[ AuthSettings ] — development, production, staging, testing
++---------------+----------------------+------------------+--------------------------+-----------------------+
+| Property      | development          | production       | staging                  | testing               |
++---------------+----------------------+------------------+--------------------------+-----------------------+
+| domain *      | dev.auth.example.com | auth.example.com | staging.auth.example.com | test.auth.example.com |
+| timeout *     | 30                   | 10               | 20                       | 5                     |
+| mfa_enabled * | false                | true             | true                     | false                 |
+| currency      | EUR                  | EUR              | EUR                      | EUR                   |
++---------------+----------------------+------------------+--------------------------+-----------------------+
 * = differs somewhere
-1 unmarked property is the same everywhere.
+1 property is repeated with the same value in every environment: currency
+Each can be a constructor default instead — written once, in the signature.
 ```
 
-An unmarked row does not vary by environment, so it may not need to be a setting at all — a plain `config()` entry or a constant would do. That trailing count is the one thing this view tells you that no other command can.
+An unmarked row holds the same value in every environment, and the footer names each one still written out in every factory — something no other command can tell you. Give it a constructor default and it is written once, in the signature, while an environment that genuinely differs passes its own value ([`--shared`](#env-settingsmake) generates that shape for a new class). Keep it in the settings class rather than moving it to `config()`, so the class stays the one place to look. A property that already holds its default is not named, and neither is a nested settings class or an object, whose value this view cannot see inside.
 
-The columns are the factories the class itself declares, called directly, so what you see is the class's own set of environments rather than whatever `APP_ENV` happens to be. Values are compared *before* masking, so a `#[Sensitive]` property is still marked `*` when it differs between environments without being revealed.
+The columns come from calling the class's factories directly, so they do not depend on what `APP_ENV` happens to be. A `staging()` or `testing()` the class inherits gets no column, because it returns `development()` and would only repeat that one. A line below the table names it instead — `Not shown: testing(), which falls back to development().` — since an environment silently running development's values is worth knowing. Values are compared *before* masking, so a `#[Sensitive]` property is still marked `*` when it differs between environments without being revealed.
 
 Works with or without a class argument — given none, every registered class gets its own matrix.
 

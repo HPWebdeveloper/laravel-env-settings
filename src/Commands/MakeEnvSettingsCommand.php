@@ -165,7 +165,7 @@ class MakeEnvSettingsCommand extends Command
             $literal = $this->literalForType($types[$name], $value);
 
             if ($literal === null) {
-                error("Cannot use --shared for {$name}: a {$types[$name]} default cannot be written on the command line. Add it to the constructor by hand.");
+                error("Cannot use --shared for {$name}: ".$this->sharedRefusal($types[$name], $value));
 
                 return null;
             }
@@ -182,13 +182,19 @@ class MakeEnvSettingsCommand extends Command
      * Only the scalar types are supported. An array or enum default is not
      * expressible as one comma-separated argument, and guessing would produce a
      * class that does not compile — so those are refused rather than mangled.
+     *
+     * Numbers are checked against what PHP will read back, not just for digits.
+     * An int with a leading zero is an octal literal — `010` is 8, and `08` does
+     * not parse — and one past PHP_INT_MAX becomes a float that an int default
+     * cannot hold, so both are refused. A float in exponent form is already a
+     * float literal as written: appending `.0` to `1e3` would not parse.
      */
     private function literalForType(string $type, string $value): ?string
     {
         return match ($type) {
             'string' => var_export($value, true),
-            'int' => preg_match('/^-?\d+$/', $value) === 1 ? $value : null,
-            'float' => is_numeric($value) ? (str_contains($value, '.') ? $value : $value.'.0') : null,
+            'int' => filter_var($value, FILTER_VALIDATE_INT) === false ? null : $value,
+            'float' => is_numeric($value) ? (preg_match('/[.eE]/', $value) === 1 ? $value : $value.'.0') : null,
             'bool' => match (strtolower($value)) {
                 'true', '1' => 'true',
                 'false', '0' => 'false',
@@ -196,6 +202,22 @@ class MakeEnvSettingsCommand extends Command
             },
             default => null,
         };
+    }
+
+    /**
+     * Explain why a --shared value has no literal.
+     *
+     * An int with a leading zero gets its own answer, because it looks valid:
+     * the generic one would leave the developer wondering what is wrong with
+     * `010`.
+     */
+    private function sharedRefusal(string $type, string $value): string
+    {
+        if ($type === 'int' && preg_match('/^[+-]?0\d/', $value) === 1) {
+            return "{$value} has a leading zero, which PHP reads as octal. Write it without one, or add the default to the constructor by hand.";
+        }
+
+        return "a {$type} default cannot be written on the command line. Add it to the constructor by hand.";
     }
 
     /**

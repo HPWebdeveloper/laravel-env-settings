@@ -150,6 +150,15 @@ Generated automatically by `bin/generate-test-inventory`. Edit tests to update t
 - test shared rejects a value that does not fit the type
   - Assertions: assertFileDoesNotExist
 
+- test shared writes a float in exponent form as valid php
+  - Assertions: assertStringContainsString
+
+- test shared refuses an int with a leading zero
+  - Assertions: assertFileDoesNotExist
+
+- test shared refuses an int too large for php
+  - Assertions: assertFileDoesNotExist
+
 - test shared refuses an array property rather than mangling it
 
 - test shared combines with sensitive
@@ -172,7 +181,10 @@ Generated automatically by `bin/generate-test-inventory`. Edit tests to update t
 - test show displays boolean values correctly
   - Assertions: assertSame, assertStringContainsString
 
-- test all prints a column for every declared environment
+- test all prints a column for every environment the class defines
+  - Assertions: assertMatchesRegularExpression, assertDoesNotMatchRegularExpression
+
+- test all names the factories that fall back to development
   - Assertions: assertStringContainsString
 
 - test all shows every environment value in one table
@@ -189,6 +201,15 @@ Generated automatically by `bin/generate-test-inventory`. Edit tests to update t
 
 - test all does not suggest defaults when every property varies
   - Assertions: assertStringNotContainsString
+
+- test all does not name a property that already holds its default
+  - Assertions: assertStringContainsString
+
+- test all names a default that every factory overrides with the same value
+  - Assertions: assertMatchesRegularExpression, assertStringContainsString
+
+- test all does not name a value it cannot see inside
+  - Assertions: assertStringContainsString, assertStringNotContainsString
 
 - test all renders enums as their values
   - Assertions: assertStringContainsString, assertStringNotContainsString

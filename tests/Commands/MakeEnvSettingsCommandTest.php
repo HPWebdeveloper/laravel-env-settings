@@ -636,6 +636,53 @@ class MakeEnvSettingsCommandTest extends TestCase
         $this->assertFileDoesNotExist($this->outputPath.'/BadTypeSettings.php');
     }
 
+    public function test_shared_writes_a_float_in_exponent_form_as_valid_php(): void
+    {
+        // 1e3 is a float literal as written. Appending `.0`, as a whole number
+        // needs, would produce 1e3.0 — which does not parse.
+        $this->artisanCommand('env-settings:make', [
+            'name' => 'ExponentSettings',
+            '--properties' => 'provider:string,rate:float',
+            '--shared' => 'rate=1e3',
+            '--path' => $this->outputPath,
+        ])->assertSuccessful();
+
+        $file = $this->outputPath.'/ExponentSettings.php';
+        $lint = shell_exec('php -l '.escapeshellarg($file).' 2>&1');
+
+        $this->assertStringContainsString('public float $rate = 1e3,', $this->readFile($file));
+        $this->assertStringContainsString('No syntax errors', (string) $lint);
+    }
+
+    public function test_shared_refuses_an_int_with_a_leading_zero(): void
+    {
+        // PHP reads 010 as octal 8 and cannot parse 08 at all, so writing either
+        // as typed would silently change the value or break the class.
+        $this->artisanCommand('env-settings:make', [
+            'name' => 'OctalSettings',
+            '--properties' => 'timeout:int',
+            '--shared' => 'timeout=010',
+            '--path' => $this->outputPath,
+        ])->expectsOutputToContain('leading zero')
+            ->assertFailed();
+
+        $this->assertFileDoesNotExist($this->outputPath.'/OctalSettings.php');
+    }
+
+    public function test_shared_refuses_an_int_too_large_for_php(): void
+    {
+        // Past PHP_INT_MAX the literal becomes a float, which an int default
+        // cannot hold, so the class would not load.
+        $this->artisanCommand('env-settings:make', [
+            'name' => 'HugeSettings',
+            '--properties' => 'limit:int',
+            '--shared' => 'limit=99999999999999999999',
+            '--path' => $this->outputPath,
+        ])->assertFailed();
+
+        $this->assertFileDoesNotExist($this->outputPath.'/HugeSettings.php');
+    }
+
     public function test_shared_refuses_an_array_property_rather_than_mangling_it(): void
     {
         // A comma-separated option cannot express an array literal, and guessing

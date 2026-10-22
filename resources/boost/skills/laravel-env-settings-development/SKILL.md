@@ -96,7 +96,8 @@ public static function staging(): static { return new static(provider: 'openai',
 Do not reach for a package mechanism here — this is plain PHP and it works with
 every command, masking, overrides and `toArray()` unchanged. PHP requires
 parameters with defaults last, so they collect at the end of the constructor.
-`env-settings:show --all` names the properties that never vary, and
+`env-settings:show --all` names every property still repeated in every factory
+(one that already holds its default is not named), and
 `env-settings:make --shared` generates this shape.
 
 Keep it in the settings class rather than moving it to `config/`: a class holding
@@ -184,7 +185,7 @@ php artisan env-settings:diff                                # prompts for class
 php artisan env-settings:check --env=production              # fails if anything is unfinished
 ```
 
-Reach for `--all` when the question is *"how do these environments differ?"* — `diff` answers it for exactly two, so four environments would take six runs. The matrix marks a property `*` when it differs anywhere and reports how many are the same everywhere; an unmarked property does not vary by environment, so it may not need to be a setting at all.
+Reach for `--all` when the question is *"how do these environments differ?"* — `diff` answers it for exactly two, so four environments would take six runs. The matrix marks a property `*` when it differs anywhere, and names every property still written out with the same value in every factory — give each a constructor default (see *Values that never vary*) rather than moving it out of the class. An inherited `staging()` or `testing()` returns `development()`, so it is named below the table instead of getting a column.
 
 ### Verifying settings before they ship
 

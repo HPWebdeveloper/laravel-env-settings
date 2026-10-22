@@ -96,7 +96,9 @@ class ShowEnvSettingsCommand extends Command
      * source. This is that picture.
      *
      * Factories are called directly rather than resolved, so the columns are the
-     * environments the class itself declares.
+     * environments the class itself declares. An inherited staging() or
+     * testing() would only repeat the development column, so it is named
+     * below the table instead.
      *
      * @param  class-string<EnvironmentSettings>  $class
      */
@@ -114,12 +116,13 @@ class ShowEnvSettingsCommand extends Command
             return;
         }
 
-        $reflection = new ReflectionClass(reset($instances));
+        $first = reset($instances);
+        $reflection = new ReflectionClass($first);
         $this->info("[ {$reflection->getShortName()} ] — ".implode(', ', array_keys($instances)));
 
         $rows = [];
         $differing = 0;
-        $same = [];
+        $repeated = [];
 
         foreach ($reflection->getProperties(ReflectionProperty::IS_PUBLIC) as $prop) {
             $rendered = [];
@@ -136,8 +139,8 @@ class ShowEnvSettingsCommand extends Command
             $differs = count(array_unique($raw)) > 1;
             $differing += $differs ? 1 : 0;
 
-            if (! $differs) {
-                $same[] = $prop->getName();
+            if (! $differs && $this->isRepeatedInEveryFactory($prop, $prop->getValue($first), $raw[0])) {
+                $repeated[] = $prop->getName();
             }
 
             $rows[] = array_merge([$prop->getName().($differs ? ' *' : '')], $rendered);
@@ -147,22 +150,78 @@ class ShowEnvSettingsCommand extends Command
 
         if ($differing === 0) {
             $this->line('No property varies by environment — these values may not need a settings class at all.');
+        } else {
+            $this->line('* = differs somewhere');
 
+            if ($repeated !== []) {
+                // Naming them is the actionable half: each is a value repeated in
+                // every factory that PHP could hold once, in the signature.
+                $this->line(sprintf(
+                    '%s repeated with the same value in every environment: %s',
+                    count($repeated) === 1 ? '1 property is' : count($repeated).' properties are',
+                    implode(', ', $repeated),
+                ));
+                $this->line('Each can be a constructor default instead — written once, in the signature.');
+            }
+        }
+
+        $this->noteInheritedEnvironments($class);
+    }
+
+    /**
+     * Name the optional factories the class leaves to the base class.
+     *
+     * Each returns development(), so a column for it would only repeat that
+     * one. That staging runs development's values is still worth knowing, so
+     * it is said rather than shown.
+     *
+     * @param  class-string<EnvironmentSettings>  $class
+     */
+    private function noteInheritedEnvironments(string $class): void
+    {
+        $inherited = array_map(fn (string $name): string => $name.'()', $this->inheritedEnvironments($class));
+
+        if ($inherited === []) {
             return;
         }
 
-        $this->line('* = differs somewhere');
+        $this->line(sprintf(
+            'Not shown: %s, which %s back to development().',
+            implode(' and ', $inherited),
+            count($inherited) === 1 ? 'falls' : 'fall',
+        ));
+    }
 
-        if ($same !== []) {
-            // Naming them is the actionable half: each is a value repeated in
-            // every factory that PHP could hold once, in the signature.
-            $this->line(sprintf(
-                '%s the same in every environment: %s',
-                count($same) === 1 ? '1 property is' : count($same).' properties are',
-                implode(', ', $same),
-            ));
-            $this->line('Each can be a constructor default instead, written once — see env-settings:make --shared.');
+    /**
+     * Whether a value that never varies is written out in every factory.
+     *
+     * Only those are worth naming. A value equal to its declared default — on
+     * the constructor parameter, or on the property itself — is written once
+     * already, so naming it would repeat advice that has been taken. It has to
+     * equal the default, not merely have one: a default that every factory
+     * overrides with the same value is still repeated per factory.
+     *
+     * A nested settings class or an object renders as its class name, so
+     * whether it repeats cannot be seen here; it is never named.
+     */
+    private function isRepeatedInEveryFactory(ReflectionProperty $prop, mixed $value, string $rendered): bool
+    {
+        if ($this->rendersAsPlaceholder($value)) {
+            return false;
         }
+
+        if (! $prop->isPromoted()) {
+            return ! $prop->hasDefaultValue() || $this->formatValue($prop->getDefaultValue()) !== $rendered;
+        }
+
+        foreach ($prop->getDeclaringClass()->getConstructor()?->getParameters() ?? [] as $parameter) {
+            if ($parameter->getName() === $prop->getName()) {
+                return ! $parameter->isDefaultValueAvailable()
+                    || $this->formatValue($parameter->getDefaultValue()) !== $rendered;
+            }
+        }
+
+        return true;
     }
 
     /**

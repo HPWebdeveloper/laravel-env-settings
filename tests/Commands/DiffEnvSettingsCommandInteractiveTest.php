@@ -34,8 +34,8 @@ class DiffEnvSettingsCommandInteractiveTest extends TestCase
                 FakeAuthSettings::class => 'FakeAuthSettings ('.FakeAuthSettings::class.')',
                 FakePaymentSettings::class => 'FakePaymentSettings ('.FakePaymentSettings::class.')',
             ])
-            ->expectsChoice('First environment', 'development', ['development', 'production', 'staging', 'testing'])
-            ->expectsChoice('Second environment', 'production', ['production', 'staging', 'testing'])
+            ->expectsChoice('First environment', 'development', ['development', 'production', 'staging'])
+            ->expectsChoice('Second environment', 'production', ['production', 'staging'])
             ->expectsOutputToContain('FakeAuthSettings')
             ->assertSuccessful();
     }
@@ -54,8 +54,10 @@ class DiffEnvSettingsCommandInteractiveTest extends TestCase
                 FakeAuthSettings::class => 'FakeAuthSettings ('.FakeAuthSettings::class.')',
                 FakePaymentSettings::class => 'FakePaymentSettings ('.FakePaymentSettings::class.')',
             ])
-            ->expectsChoice('First environment', 'development', ['development', 'production', 'staging', 'testing'])
-            ->expectsChoice('Second environment', 'production', ['production', 'staging', 'testing'])
+            // FakePaymentSettings inherits staging() and testing(), which only
+            // repeat development(), so they are not offered.
+            ->expectsChoice('First environment', 'development', ['development', 'production'])
+            ->expectsChoice('Second environment', 'production', ['production'])
             ->expectsOutputToContain('FakePaymentSettings')
             ->assertSuccessful();
     }
@@ -63,8 +65,8 @@ class DiffEnvSettingsCommandInteractiveTest extends TestCase
     public function test_it_prompts_for_both_environments_when_only_a_class_is_given(): void
     {
         $this->artisanCommand('env-settings:diff', ['class' => FakeAuthSettings::class])
-            ->expectsChoice('First environment', 'development', ['development', 'production', 'staging', 'testing'])
-            ->expectsChoice('Second environment', 'production', ['production', 'staging', 'testing'])
+            ->expectsChoice('First environment', 'development', ['development', 'production', 'staging'])
+            ->expectsChoice('Second environment', 'production', ['production', 'staging'])
             ->expectsOutputToContain('Comparing development vs production')
             ->assertSuccessful();
     }
@@ -74,8 +76,8 @@ class DiffEnvSettingsCommandInteractiveTest extends TestCase
         // `array_diff` removes the first selection, so `production` is absent
         // from the second list once it has been chosen.
         $this->artisanCommand('env-settings:diff', ['class' => FakeAuthSettings::class])
-            ->expectsChoice('First environment', 'production', ['development', 'production', 'staging', 'testing'])
-            ->expectsChoice('Second environment', 'staging', ['development', 'staging', 'testing'])
+            ->expectsChoice('First environment', 'production', ['development', 'production', 'staging'])
+            ->expectsChoice('Second environment', 'staging', ['development', 'staging'])
             ->expectsOutputToContain('Comparing production vs staging')
             ->assertSuccessful();
     }
@@ -89,8 +91,8 @@ class DiffEnvSettingsCommandInteractiveTest extends TestCase
             ->expectsChoice(self::CLASS_PROMPT, FakeAuthSettings::class, [
                 FakeAuthSettings::class => 'FakeAuthSettings ('.FakeAuthSettings::class.')',
             ])
-            ->expectsChoice('First environment', 'development', ['development', 'production', 'staging', 'testing'])
-            ->expectsChoice('Second environment', 'production', ['production', 'staging', 'testing'])
+            ->expectsChoice('First environment', 'development', ['development', 'production', 'staging'])
+            ->expectsChoice('Second environment', 'production', ['production', 'staging'])
             ->assertSuccessful();
     }
 
@@ -125,8 +127,8 @@ class DiffEnvSettingsCommandInteractiveTest extends TestCase
             ->expectsChoice(self::CLASS_PROMPT, FakeAuthSettings::class, [
                 FakeAuthSettings::class => 'FakeAuthSettings ('.FakeAuthSettings::class.')',
             ])
-            ->expectsChoice('First environment', 'development', ['development', 'production', 'staging', 'testing'])
-            ->expectsChoice('Second environment', 'production', ['production', 'staging', 'testing'])
+            ->expectsChoice('First environment', 'development', ['development', 'production', 'staging'])
+            ->expectsChoice('Second environment', 'production', ['production', 'staging'])
             ->assertSuccessful();
     }
 }
