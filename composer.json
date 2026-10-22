@@ -26,7 +26,7 @@
   },
   "require-dev": {
     "ergebnis/composer-normalize": "^2.54",
-    "larastan/larastan": "^3.10.0",
+    "larastan/larastan": "^3.13.0",
     "laravel/pint": "^1.26",
     "orchestra/testbench": "^10.8.0 || ^11.0",
     "orchestra/workbench": "^10.0.7 || ^11.0",
