@@ -87,10 +87,9 @@ abstract class EnvironmentSettings implements EnvironmentAware
     /**
      * Return a copy of this instance with the given properties replaced.
      *
-     * The copy is cloned rather than rebuilt through the constructor. A
-     * settings class may be subclassed with a different signature — a local
-     * override is exactly that — and `new static(...)` would break on any that
-     * did. Cloning copies whatever shape the runtime class actually has.
+     * The copy is cloned rather than rebuilt through the constructor, so it
+     * never depends on the constructor's parameters: cloning copies whatever
+     * shape the runtime class actually has — a local override included.
      * Properties that are not named keep their current values.
      *
      * An unknown name is rejected rather than ignored: a typo that silently

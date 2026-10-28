@@ -50,6 +50,12 @@ namespace App\Settings;
 
 use HpWebDeveloper\LaravelEnvSettings\EnvironmentSettings;
 
+/**
+ * Local overrides extend this class, so it is not final. They keep the same
+ * constructor, which is what makes `new static()` safe.
+ *
+ * @phpstan-consistent-constructor
+ */
 class AuthSettings extends EnvironmentSettings
 {
     public function __construct(
@@ -73,6 +79,8 @@ class AuthSettings extends EnvironmentSettings
     // Only override them when their values genuinely differ.
 }
 ```
+
+Keep the `@phpstan-consistent-constructor` docblock on every settings class — `env-settings:make` writes it, and a class written by hand needs it too. A settings class is not `final` because local overrides extend it; without the tag, PHPStan reports `new.static` on every factory, at any level.
 
 ## Values that never vary
 
@@ -165,7 +173,7 @@ Attribute mappings are inherited down the class hierarchy, so a local override t
 Per-developer values without touching committed code:
 
 1. Set `ENV_SETTINGS_OVERRIDE=true` in `.env`
-2. Create `app/Settings/Overrides/AuthSettings.php` extending the base class and overriding the factories you need
+2. Create `app/Settings/Overrides/AuthSettings.php` extending the base class and overriding the factories you need — never the constructor: the base class's `@phpstan-consistent-constructor` makes PHPStan report an override that changes it
 3. Add `app/Settings/Overrides/` to `.gitignore`
 
 `override_path` in the config is resolved at runtime: `null` → `app_path('Settings/Overrides')`, a relative value is resolved against `app_path()`, an absolute value is used as-is. Prefer `null` or a relative path — never call `app_path()` inside the config file, since `config:cache` would freeze the build machine's absolute path.

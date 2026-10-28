@@ -184,6 +184,8 @@ class AuthSettings extends EnvironmentSettings
 
 Supported property types: `string`, `int`, `float`, `bool`, `array`.
 
+The class is not `final`, because a [local override](#local-development-overrides) extends it. The `@phpstan-consistent-constructor` tag is the promise that overrides keep its constructor — the promise that makes the factories' `new static()` safe. PHPStan accepts the factories on that promise and reports an override that breaks it; without the tag, it reports every `new static()`, at any level. Keep the tag on any settings class you write by hand. The examples below use its one-line form, `/** @phpstan-consistent-constructor */`.
+
 ### Fixed-value properties
 
 When a property only ever holds one of a few values, type it as an enum. A typo becomes a parse error instead of a runtime surprise, and the valid set is documented by the type itself.
@@ -216,6 +218,7 @@ namespace App\Settings;
 use App\Enums\PaymentMode;
 use HpWebDeveloper\LaravelEnvSettings\EnvironmentSettings;
 
+/** @phpstan-consistent-constructor */
 class PaymentSettings extends EnvironmentSettings
 {
     public function __construct(
@@ -390,6 +393,7 @@ Once an application has several settings classes, reaching for each one separate
 Take the `AuthSettings` from the Quick Start and a `PaymentSettings` beside it:
 
 ```php
+/** @phpstan-consistent-constructor */
 class PaymentSettings extends EnvironmentSettings
 {
     public function __construct(
@@ -412,6 +416,7 @@ class PaymentSettings extends EnvironmentSettings
 Group them under one root:
 
 ```php
+/** @phpstan-consistent-constructor */
 class AppSettings extends EnvironmentSettings
 {
     public function __construct(
@@ -451,6 +456,7 @@ That is the entire pattern. The rest of this section covers what it buys you.
 The same shape scales to as many classes as you like:
 
 ```php
+/** @phpstan-consistent-constructor */
 class AppSettings extends EnvironmentSettings
 {
     public function __construct(
@@ -563,6 +569,8 @@ app/Settings/Overrides/
 ```
 
 The override class is used instead of the base class when resolving. When overrides are disabled or the file doesn't exist, the base class is used as normal.
+
+An override changes values, not shape: override the factories, never the constructor. The base class's `@phpstan-consistent-constructor` makes PHPStan report an override that redeclares the constructor with different parameters — the case in which an inherited factory's `new static()` would break.
 
 ### Configuring the override location
 
@@ -839,6 +847,7 @@ $this->assertSame('dev.auth.example.com', AuthSettings::development()->domain);
 Every environment tends to use different models, providers, and token limits — a good fit for typed, per-environment settings:
 
 ```php
+/** @phpstan-consistent-constructor */
 class AiSettings extends EnvironmentSettings
 {
     public function __construct(

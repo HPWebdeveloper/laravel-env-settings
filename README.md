@@ -114,6 +114,12 @@ namespace App\Settings;
 
 use HpWebDeveloper\LaravelEnvSettings\EnvironmentSettings;
 
+/**
+ * Local overrides extend this class, so it is not final. They keep the same
+ * constructor, which is what makes `new static()` safe.
+ *
+ * @phpstan-consistent-constructor
+ */
 class AuthSettings extends EnvironmentSettings
 {
     public function __construct(
@@ -135,6 +141,8 @@ class AuthSettings extends EnvironmentSettings
 ```
 
 `development()` and `production()` are required. `staging()` and `testing()` fall back to `development()` — override them only when the values genuinely differ.
+
+Writing a class by hand? Keep that docblock: without `@phpstan-consistent-constructor`, PHPStan reports every `new static()`.
 
 Property types: `string`, `int`, `float`, `bool`, `array`, or [any enum](#fixed-value-properties-enums).
 
