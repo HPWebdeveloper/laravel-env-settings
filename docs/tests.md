@@ -63,6 +63,9 @@ Generated automatically by `bin/generate-test-inventory`. Edit tests to update t
 - test generated file contains correct class name
   - Assertions: assertStringContainsString
 
+- test generated class declares a consistent constructor
+  - Assertions: assertMatchesRegularExpression
+
 - test generated file has development and production methods
   - Assertions: assertStringContainsString
 

@@ -104,6 +104,23 @@ class MakeEnvSettingsCommandTest extends TestCase
         $this->assertStringContainsString('class PaymentSettings extends EnvironmentSettings', $content);
     }
 
+    public function test_generated_class_declares_a_consistent_constructor(): void
+    {
+        $this->artisanCommand('env-settings:make', [
+            'name' => 'CacheSettings',
+            '--path' => $this->outputPath,
+        ])->assertSuccessful();
+
+        $content = $this->readFile($this->outputPath.'/CacheSettings.php');
+
+        // Overrides extend the class, so it cannot be final: the tag in its
+        // docblock is what lets PHPStan accept the factories' `new static()`.
+        $this->assertMatchesRegularExpression(
+            '~/\*\*(?:(?!\*/).)*@phpstan-consistent-constructor(?:(?!\*/).)*\*/\s*class CacheSettings extends EnvironmentSettings~s',
+            $content,
+        );
+    }
+
     public function test_generated_file_has_development_and_production_methods(): void
     {
         $this->artisanCommand('env-settings:make', [
